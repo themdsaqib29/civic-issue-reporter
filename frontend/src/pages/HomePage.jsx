@@ -19,6 +19,12 @@ function HomePage() {
       {isLoggedIn ? (
         <div style={styles.userSection}>
           <p style={styles.welcome}>Welcome, {user?.name}!</p>
+          <button 
+            onClick={() => navigate('/report-issue')} 
+            style={styles.reportButton}
+          >
+            Report an Issue
+          </button>
           <p style={styles.email}>{user?.email}</p>
           <button onClick={handleLogout} style={styles.logoutButton}>
             Logout
@@ -89,6 +95,16 @@ const styles = {
     fontSize: '24px',
     fontWeight: 'bold',
     marginBottom: '10px',
+  },
+  reportButton: {
+    padding: '12px 30px',
+    fontSize: '18px',
+    backgroundColor: '#28a745',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    marginTop: '20px',
   },
   email: {
     color: '#666',

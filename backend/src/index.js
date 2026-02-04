@@ -28,6 +28,8 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+const chatRoutes = require('./routes/chatRoutes');
+app.use('/api/chat', chatRoutes);
 
 // Test database connection
 app.get('/api/test-db', async (req, res) => {
