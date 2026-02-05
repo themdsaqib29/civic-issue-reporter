@@ -1,4 +1,4 @@
-const pool = require('../config/database');
+const pool = require('../config/database.js');
 const bcrypt = require('bcrypt');
 
 class User {

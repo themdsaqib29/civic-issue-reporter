@@ -18,8 +18,8 @@
 
 const express = require('express');
 const router = express.Router();
-const chatController = require('../controllers/chatController');
-const { verifyToken } = require('../middleware/auth');
+const chatController = require('../controllers/chatController.js');
+const { verifyToken } = require('../middleware/auth.js');
 
 // FIX: Use an arrow function wrapper (req, res) => ...
 // This prevents the "argument handler must be a function" error

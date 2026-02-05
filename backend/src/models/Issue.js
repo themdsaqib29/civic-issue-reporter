@@ -42,7 +42,7 @@ class Issue {
 
 module.exports = Issue;*/
 
-const pool = require('../config/database');
+/*const pool = require('../config/database');
 
 class Issue {
   static async create(issueData) {
@@ -102,6 +102,85 @@ class Issue {
   static async findAll() {
     const result = await pool.query('SELECT * FROM issues ORDER BY created_at DESC');
     return result.rows;
+  }
+}
+
+module.exports = Issue;*/
+
+const pool = require('../config/database.js');
+
+class Issue {
+  static async create(issueData) {
+    try {
+      const { 
+        userId, 
+        title, 
+        description, 
+        category, 
+        locationLat, 
+        locationLng, 
+        locationAddress, 
+        imageUrl,
+        priorityScore,
+        severity
+      } = issueData;
+      
+      const query = `
+        INSERT INTO issues 
+        (user_id, title, description, category, location_lat, location_lng, 
+         location_address, image_url, priority_score, vote_count, status)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        RETURNING *
+      `;
+      
+      const values = [
+        userId,
+        title || 'Civic Issue Report',
+        description,
+        category,
+        locationLat || 13.0827,  // Default Chennai coordinates
+        locationLng || 80.2707,
+        locationAddress || 'Location not specified',
+        imageUrl || null,
+        priorityScore || 5,
+        0, // initial vote_count
+        'Pending' // initial status
+      ];
+      
+      console.log('Creating issue with values:', values); // DEBUG
+      
+      const result = await pool.query(query, values);
+      return result.rows[0];
+      
+    } catch (error) {
+      console.error('Issue.create error:', error);
+      throw error;
+    }
+  }
+  
+  static async findAll() {
+    try {
+      const query = `
+        SELECT * FROM issues 
+        ORDER BY priority_score DESC, created_at DESC
+      `;
+      const result = await pool.query(query);
+      return result.rows;
+    } catch (error) {
+      console.error('Issue.findAll error:', error);
+      throw error;
+    }
+  }
+  
+  static async findById(id) {
+    try {
+      const query = 'SELECT * FROM issues WHERE id = $1';
+      const result = await pool.query(query, [id]);
+      return result.rows[0];
+    } catch (error) {
+      console.error('Issue.findById error:', error);
+      throw error;
+    }
   }
 }
 

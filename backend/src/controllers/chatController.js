@@ -1,175 +1,116 @@
-/*
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-class ChatController {
-  async processMessage(req, res) {
-    try {
-      const { message, conversationHistory } = req.body;
-      
-      // 1. Initialize Gemini
-      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-      const model = genAI.getGenerativeModel({ 
-        model: "gemini-1.5-flash", // Fast and efficient model
-        systemInstruction: `You are a helpful civic issue reporting assistant for Chennai. 
-        Your goal is to extract 4 details: 
-        1. Category (Road, Garbage, Streetlight, Water, Drainage)
-        2. Description
-        3. Location
-        4. Severity
-        
-        If details are missing, ask for them naturally.
-        When you have ALL 4, return ONLY this JSON:
-        { "readyToSubmit": true, "issueData": { "category": "...", "description": "...", "location": "...", "severity": "..." } }`
-      });
+const MODEL_NAME = "gemini-3-flash-preview"; // STABLE & SUPPORTED
 
-      // 2. Format History for Gemini (User = 'user', Bot = 'model')
-      const chatHistory = (conversationHistory || []).map(msg => ({
-        role: msg.role === 'bot' || msg.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: msg.content }]
-      }));
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-      // 3. Start Chat Session
-      const chat = model.startChat({
-        history: chatHistory,
-      });
-
-      // 4. Send User Message
-      const result = await chat.sendMessage(message);
-      const botReply = result.response.text();
-
-      // 5. Check if it's JSON (Ready to Submit)
-      let parsedData = null;
-      try {
-        // Sometimes AI adds markdown like \`\`\`json ... \`\`\`
-        const cleanJson = botReply.replace(/```json|```/g, '').trim();
-        parsedData = JSON.parse(cleanJson);
-      } catch (e) {
-        // Not JSON, just normal conversation
-      }
-
-      res.json({
-        success: true,
-        reply: parsedData ? parsedData : botReply,
-        isJson: !!parsedData
-      });
-
-    } catch (error) {
-      console.error('Gemini Error:', error);
-      res.status(500).json({
-        success: false,
-        error: 'AI Service Error',
-        reply: "I'm having trouble connecting to the AI. Please try again."
-      });
+/**
+ * Gemini health check (DO NOT hard-fail server)
+ */
+async function initializeGemini() {
+  try {
+    console.log("🔍 Verifying Gemini API key...");
+    if (!process.env.GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY missing");
     }
+    console.log(`✅ Gemini initialized with model: ${MODEL_NAME}`);
+  } catch (err) {
+    console.error("❌ Gemini init warning:", err.message);
   }
 }
 
-module.exports = new ChatController();
-*/
-/*
-class ChatController {
-  async processMessage(req, res) {
-    try {
-      const { message } = req.body;
-      const lowerMsg = message.toLowerCase();
+/**
+ * Normalize frontend history → Gemini format
+ */
+function sanitizeHistory(history) {
+  if (!Array.isArray(history)) return [];
 
-      // Simulate AI thinking time (makes it feel real)
-      await new Promise(resolve => setTimeout(resolve, 1000));
+  const cleaned = history
+    .filter(m => m?.content && typeof m.content === "string")
+    .map(m => ({
+      role: m.role === "assistant" || m.role === "bot" ? "model" : "user",
+      parts: [{ text: m.content.trim() }]
+    }));
 
-      let reply = "I can help you report civic issues. Please mention the Category (Road, Garbage, etc.) and Location.";
-      let issueData = null;
+  // Gemini rule: first message must be user
+  while (cleaned.length && cleaned[0].role !== "user") {
+    cleaned.shift();
+  }
 
-      // --- SIMPLE KEYWORD LOGIC ---
-      
-      // 1. Check for Road/Pothole
-      if (lowerMsg.includes('pothole') || lowerMsg.includes('road')) {
-        if (lowerMsg.includes('street') || lowerMsg.includes('nagar') || lowerMsg.includes('road')) {
-          // If they mentioned a location (street/nagar), assume we are done!
-          issueData = {
-            category: "Road Maintenance",
-            description: message,
-            location: "Detected from chat (Mock Location)",
-            severity: "Normal"
-          };
-        } else {
-          reply = "I understand this is a Road issue. Could you tell me the exact location?";
-        }
-      }
-      
-      // 2. Check for Garbage
-      else if (lowerMsg.includes('garbage') || lowerMsg.includes('waste')) {
-        reply = "Is the garbage overflowing or is it a missed collection?";
-      }
+  return cleaned.slice(-30);
+}
 
-      // 3. Return Response
-      res.json({
-        success: true,
-        reply: issueData ? issueData : reply, // If we have data, send object, else send text
-        isJson: !!issueData // Tell frontend if this is final data or chat text
-      });
+/**
+ * Chat endpoint
+ */
+async function processMessage(req, res) {
+  try {
+    const { message, history = [] } = req.body;
 
-    } catch (error) {
-      console.error('Chat Error:', error);
-      res.status(500).json({ success: false, reply: "System Error" });
+    if (!message || !message.trim()) {
+      return res.status(400).json({ error: "Message is required" });
     }
+
+    const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+
+    const SYSTEM_PROMPT = `
+You are a civic issue reporting assistant.
+Collect:
+1. Category
+2. Description
+3. Location
+4. Severity
+
+Ask one missing detail at a time.
+When all are present, confirm clearly.
+`;
+
+    const cleanedHistory = sanitizeHistory(history);
+
+    // Inject system prompt ONLY into first user message
+    if (cleanedHistory.length === 0) {
+      cleanedHistory.push({
+        role: "user",
+        parts: [{ text: SYSTEM_PROMPT + "\n\nUser: " + message }]
+      });
+    }
+
+    const chat = model.startChat({ history: cleanedHistory });
+
+    const result =
+      cleanedHistory.length > 1
+        ? await chat.sendMessage(message.trim())
+        : await chat.sendMessage("");
+
+    const reply = result?.response?.text?.();
+
+    if (!reply) throw new Error("Empty Gemini response");
+
+    res.json({
+      reply,
+      model: MODEL_NAME
+    });
+
+  } catch (error) {
+    console.error("❌ Gemini Error:", error.message);
+
+    res.status(500).json({
+      error: "Gemini processing failed",
+      details: error.message
+    });
   }
 }
 
-module.exports = new ChatController();
-*/
-
-class ChatController {
-  async processMessage(req, res) {
-    try {
-      const { message } = req.body;
-      const lowerMsg = message.toLowerCase();
-
-      // Simulate AI thinking time
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      let finalResponse = null;
-
-      // 1. Check for Road/Pothole
-      if (lowerMsg.includes('pothole') || lowerMsg.includes('road')) {
-        if (lowerMsg.includes('street') || lowerMsg.includes('nagar') || lowerMsg.includes('road')) {
-          // SUCCESS: We have a "Location" (street/nagar/road)
-          finalResponse = {
-            readyToSubmit: true, // <--- THIS WAS MISSING
-            issueData: {
-              category: "Road Maintenance",
-              description: message,
-              location: "Detected Location (Simulated)",
-              severity: "Normal"
-            }
-          };
-        } else {
-          // Partial match: Ask for location
-          finalResponse = "I understand this is a Road issue. Could you tell me the exact location?";
-        }
-      } 
-      // 2. Check for Garbage
-      else if (lowerMsg.includes('garbage') || lowerMsg.includes('waste')) {
-        finalResponse = "Is the garbage overflowing or is it a missed collection?";
-      } 
-      // 3. Default
-      else {
-        finalResponse = "I can help you report civic issues. Please mention the Category (Road, Garbage) and Location.";
-      }
-
-      // Check if it's a JSON object (Success) or just a String (Question)
-      const isJson = typeof finalResponse === 'object';
-
-      res.json({
-        success: true,
-        reply: finalResponse, 
-        isJson: isJson
-      });
-
-    } catch (error) {
-      console.error('Chat Error:', error);
-      res.status(500).json({ success: false, reply: "System Error" });
-    }
-  }
+function healthCheck(req, res) {
+  res.json({
+    status: "ok",
+    model: MODEL_NAME,
+    timestamp: new Date().toISOString()
+  });
 }
 
-module.exports = new ChatController();
+module.exports = {
+  processMessage,
+  healthCheck,
+  initializeGemini
+};

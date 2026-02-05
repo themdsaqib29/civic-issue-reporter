@@ -66,7 +66,7 @@ function ChatIssuePage() {
     }
   };
 
-  const handleSubmitIssue = async () => {
+  /*const handleSubmitIssue = async () => {
     try {
       setLoading(true);
       
@@ -88,6 +88,47 @@ function ChatIssuePage() {
     } catch (error) {
       console.error('Submit error:', error);
       alert('Failed to submit issue');
+    } finally {
+      setLoading(false);
+    }
+  };*/
+
+  const handleSubmitIssue = async () => {
+    try {
+      setLoading(true);
+    
+      console.log('Submitting issue data:', issueData); // DEBUG
+    
+      // Prepare the payload
+      const payload = {
+        title: `${issueData.category} Issue`,
+        description: issueData.description,
+        category: issueData.category,
+        location_address: issueData.location,
+        severity: issueData.severity || 'normal',
+        location_lat: 13.0827, // Default Chennai coords
+        location_lng: 80.2707
+      };
+    
+      console.log('Sending payload:', payload); // DEBUG
+    
+      // Submit issue to backend
+      const response = await apiClient.post('/issues', payload);
+    
+      console.log('Response:', response.data); // DEBUG
+    
+      if (response.data.success) {
+        alert(`Issue submitted successfully! Priority: ${response.data.priorityLevel}`);
+        navigate('/');
+      } else {
+        alert('Failed to submit issue: ' + (response.data.error || 'Unknown error'));
+      }
+    } catch (error) {
+      console.error('Submit error:', error);
+      console.error('Error response:', error.response?.data); // DEBUG
+    
+      const errorMsg = error.response?.data?.error || error.message || 'Failed to submit issue';
+      alert('Error: ' + errorMsg);
     } finally {
       setLoading(false);
     }
