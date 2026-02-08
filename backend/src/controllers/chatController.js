@@ -1,3 +1,12 @@
+// TEMP in-memory issue state (per server, dev-safe)
+
+let issueState = {
+  category: null,
+  description: null,
+  location: null,
+  severity: null,
+};
+
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 const MODEL_NAME = "gemini-3-flash-preview"; // STABLE & SUPPORTED
@@ -46,10 +55,67 @@ function sanitizeHistory(history) {
 async function processMessage(req, res) {
   try {
     const { message, history = [] } = req.body;
+    const msg = message.toLowerCase();
+
+// very simple deterministic extraction
+if (!issueState.severity && /(low|medium|high|urgent)/.test(msg)) {
+  issueState.severity = msg.match(/low|medium|high|urgent/)[0];
+}
+
+if (!issueState.category) {
+  if (/pothole|road/.test(msg)) {
+    issueState.category = "road";
+  } else if (/drainage|sewer|blocked drain/.test(msg)) {
+    issueState.category = "drainage";
+  } else if (/garbage|waste|trash/.test(msg)) {
+    issueState.category = "sanitation";
+  } else if (/streetlight|light/.test(msg)) {
+    issueState.category = "streetlight";
+  }
+}
+
+
+if (!issueState.description && msg.length > 15) {
+  issueState.description = message;
+}
+
+if (!issueState.location && /(near|at|opposite|behind|street|road|nagar|colony|lane|area|chennai)/.test(msg)) {
+  issueState.location = message;
+}
+
 
     if (!message || !message.trim()) {
       return res.status(400).json({ error: "Message is required" });
     }
+
+    const normalized = message.trim().toLowerCase();
+
+if (["hi", "hello"].includes(normalized)) {
+  issueState = {
+    category: null,
+    description: null,
+    location: null,
+    severity: null,
+  };
+}
+
+
+    if (!issueState.category) {
+  return res.json({ reply: "What is the category of the issue? (e.g., road, sanitation)" });
+}
+
+if (!issueState.location) {
+  return res.json({ reply: "Where is the issue located?" });
+}
+
+if (!issueState.description) {
+  return res.json({ reply: "Please briefly describe the issue." });
+}
+
+if (!issueState.severity) {
+  return res.json({ reply: "What is the severity? (Low / Medium / High)" });
+}
+
 
     const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 
@@ -66,6 +132,22 @@ When all are present, confirm clearly.
 `;
 
     const cleanedHistory = sanitizeHistory(history);
+
+    if (
+  issueState.category &&
+  issueState.description &&
+  issueState.location &&
+  issueState.severity
+) {
+  return res.json({
+    isJson: true,
+    reply: {
+      readyToSubmit: true,
+      issueData: issueState,
+    },
+  });
+}
+
 
     // Inject system prompt ONLY into first user message
     if (cleanedHistory.length === 0) {
