@@ -1,198 +1,239 @@
-// TEMP in-memory issue state (per server, dev-safe)
+// In-memory conversation state (per user session)
+function cleanLocation(message) {
+  // Extract only the location part
+  const match = message.match(
+    /(near|at|opposite|beside|behind)\s.+/i
+  );
 
-let issueState = {
-  category: null,
-  description: null,
-  location: null,
-  severity: null,
-};
+  if (!match) return null;
 
-const { GoogleGenerativeAI } = require("@google/generative-ai");
+  return match[0]
+    .replace(/\blow\b|\bmedium\b|\bhigh\b|\bseverity\b/gi, '')
+    .trim();
+}
 
-const MODEL_NAME = "gemini-3-flash-preview"; // STABLE & SUPPORTED
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+function cleanDescription(message) {
+  // Remove common location phrases
+  return message
+    .replace(/near\s.+/i, '')
+    .replace(/at\s.+/i, '')
+    .replace(/opposite\s.+/i, '')
+    .replace(/beside\s.+/i, '')
+    .replace(/behind\s.+/i, '')
+    .replace(/\blow\b|\bmedium\b|\bhigh\b|\bseverity\b/gi, '')
+    .trim();
+}
+
+
+const userSessions = new Map();
 
 /**
- * Gemini health check (DO NOT hard-fail server)
+ * Helper: Extract info from a single message (smart but rule-based)
  */
-async function initializeGemini() {
-  try {
-    console.log("🔍 Verifying Gemini API key...");
-    if (!process.env.GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY missing");
-    }
-    console.log(`✅ Gemini initialized with model: ${MODEL_NAME}`);
-  } catch (err) {
-    console.error("❌ Gemini init warning:", err.message);
-  }
-}
+function extractFromMessage(msg, originalMessage) {
+  const extracted = {};
 
-/**
- * Normalize frontend history → Gemini format
- */
-function sanitizeHistory(history) {
-  if (!Array.isArray(history)) return [];
+  // CATEGORY
+  if (/pothole|road|crack|tar|highway|pavement|asphalt/.test(msg))
+    extracted.category = 'Road Maintenance';
+  else if (/garbage|waste|trash|dustbin|cleaning|litter|dump/.test(msg))
+    extracted.category = 'Garbage Collection';
+  else if (/light|lamp|dark|pole|bulb|street.*light/.test(msg))
+    extracted.category = 'Streetlight';
+  else if (/water|stagnat|pipe|leak|supply|tap|burst/.test(msg))
+    extracted.category = 'Water Supply';
+  else if (/drain|sewage|block|overflow|clog|flood/.test(msg))
+    extracted.category = 'Drainage';
+  else if (/health|mosquito|disease|sanitation/.test(msg))
+    extracted.category = 'Public Health';
 
-  const cleaned = history
-    .filter(m => m?.content && typeof m.content === "string")
-    .map(m => ({
-      role: m.role === "assistant" || m.role === "bot" ? "model" : "user",
-      parts: [{ text: m.content.trim() }]
-    }));
-
-  // Gemini rule: first message must be user
-  while (cleaned.length && cleaned[0].role !== "user") {
-    cleaned.shift();
+  // SEVERITY
+  if (/(low|medium|high)/.test(msg)) {
+    extracted.severity = msg.match(/low|medium|high/)[0];
   }
 
-  return cleaned.slice(-30);
+  // LOCATION (only if location-like words exist)
+  if (/(near|opposite|beside|behind|at\s|near\s)/.test(msg)) {
+  extracted.location = originalMessage;
 }
 
-/**
- * Chat endpoint
- */
-async function processMessage(req, res) {
-  try {
-    const { message, history = [] } = req.body;
-    const msg = message.toLowerCase();
-
-// very simple deterministic extraction
-if (!issueState.severity && /(low|medium|high|urgent)/.test(msg)) {
-  issueState.severity = msg.match(/low|medium|high|urgent/)[0];
+  return extracted;
 }
 
-if (!issueState.category) {
-  if (/pothole|road/.test(msg)) {
-    issueState.category = "road";
-  } else if (/drainage|sewer|blocked drain/.test(msg)) {
-    issueState.category = "drainage";
-  } else if (/garbage|waste|trash/.test(msg)) {
-    issueState.category = "sanitation";
-  } else if (/streetlight|light/.test(msg)) {
-    issueState.category = "streetlight";
-  }
-}
+class ChatController {
 
-
-if (!issueState.description && msg.length > 15) {
-  issueState.description = message;
-}
-
-if (!issueState.location && /(near|at|opposite|behind|street|road|nagar|colony|lane|area|chennai)/.test(msg)) {
-  issueState.location = message;
-}
-
-
-    if (!message || !message.trim()) {
-      return res.status(400).json({ error: "Message is required" });
-    }
-
-    const normalized = message.trim().toLowerCase();
-
-if (["hi", "hello"].includes(normalized)) {
-  issueState = {
-    category: null,
-    description: null,
-    location: null,
-    severity: null,
-  };
-}
-
-
-    if (!issueState.category) {
-  return res.json({ reply: "What is the category of the issue? (e.g., road, sanitation)" });
-}
-
-if (!issueState.location) {
-  return res.json({ reply: "Where is the issue located?" });
-}
-
-if (!issueState.description) {
-  return res.json({ reply: "Please briefly describe the issue." });
-}
-
-if (!issueState.severity) {
-  return res.json({ reply: "What is the severity? (Low / Medium / High)" });
-}
-
-
-    const model = genAI.getGenerativeModel({ model: MODEL_NAME });
-
-    const SYSTEM_PROMPT = `
-You are a civic issue reporting assistant.
-Collect:
-1. Category
-2. Description
-3. Location
-4. Severity
-
-Ask one missing detail at a time.
-When all are present, confirm clearly.
-`;
-
-    const cleanedHistory = sanitizeHistory(history);
-
-    if (
-  issueState.category &&
-  issueState.description &&
-  issueState.location &&
-  issueState.severity
-) {
-  return res.json({
-    isJson: true,
-    reply: {
-      readyToSubmit: true,
-      issueData: issueState,
-    },
-  });
-}
-
-
-    // Inject system prompt ONLY into first user message
-    if (cleanedHistory.length === 0) {
-      cleanedHistory.push({
-        role: "user",
-        parts: [{ text: SYSTEM_PROMPT + "\n\nUser: " + message }]
+  // Get or create a session
+  getSession(userId) {
+    if (!userSessions.has(userId)) {
+      userSessions.set(userId, {
+        category: null,
+        rawDescription: null,
+        location: null,
+        severity: null,
+        phase: 'category' // category → location → severity → complete
       });
     }
+    return userSessions.get(userId);
+  }
 
-    const chat = model.startChat({ history: cleanedHistory });
+  // Clear session
+  clearSession(userId) {
+    userSessions.delete(userId);
+  }
 
-    const result =
-      cleanedHistory.length > 1
-        ? await chat.sendMessage(message.trim())
-        : await chat.sendMessage("");
+  processMessage = async (req, res) => {
+    try {
+      const { message } = req.body;
+      const userId = req.userId || 'demo-user';
 
-    const reply = result?.response?.text?.();
+      if (!message || !message.trim()) {
+        return res.json({ success: false, reply: "Please say something!" });
+      }
 
-    if (!reply) throw new Error("Empty Gemini response");
+      const msg = message.trim().toLowerCase();
 
-    res.json({
-      reply,
-      model: MODEL_NAME
-    });
+      // =====================
+      // RESET COMMANDS
+      // =====================
+      if (['hi', 'hello', 'hey', 'start', 'restart', 'reset', 'new'].includes(msg)) {
+        this.clearSession(userId);
+        return res.json({
+          success: true,
+          reply:
+            "Hi! I'm your Chennai Civic Assistant.\n\n" +
+            "What issue would you like to report?\n\n" +
+            "Examples:\n" +
+            "• Pothole on the road\n" +
+            "• Garbage not collected\n" +
+            "• Streetlight not working\n" +
+            "• Water supply problem\n" +
+            "• Drainage blocked",
+          isJson: false
+        });
+      }
 
-  } catch (error) {
-    console.error("❌ Gemini Error:", error.message);
+      const session = this.getSession(userId);
 
-    res.status(500).json({
-      error: "Gemini processing failed",
-      details: error.message
-    });
+      // =====================
+      // SMART PRE-EXTRACTION (single-message support)
+      // =====================
+      const extracted = extractFromMessage(msg, message);
+
+      if (extracted.category && !session.category) {
+  session.category = extracted.category;
+
+  // Always try to extract a clean description
+  const desc = cleanDescription(message);
+
+  if (desc && desc.length > 3) {
+    session.rawDescription = desc;
   }
 }
 
-function healthCheck(req, res) {
-  res.json({
-    status: "ok",
-    model: MODEL_NAME,
-    timestamp: new Date().toISOString()
-  });
+
+      if (extracted.location && !session.location) {
+  const loc = cleanLocation(message);
+  if (loc) {
+    session.location = loc;
+  }
 }
 
-module.exports = {
-  processMessage,
-  healthCheck,
-  initializeGemini
-};
+
+      if (extracted.severity && !session.severity) {
+        session.severity = extracted.severity;
+      }
+
+      // Adjust phase automatically based on what we have
+      if (session.category && session.location && session.severity) {
+        session.phase = 'complete';
+      } else if (session.category && session.location) {
+        session.phase = 'severity';
+      } else if (session.category) {
+        session.phase = 'location';
+      }
+
+      // =====================
+      // PHASE 1: CATEGORY
+      // =====================
+      if (session.phase === 'category') {
+        return res.json({
+          success: true,
+          reply:
+            "I couldn't identify the issue type.\n\n" +
+            "Is it related to:\n" +
+            "• Roads / Potholes\n" +
+            "• Garbage Collection\n" +
+            "• Streetlights\n" +
+            "• Water Supply\n" +
+            "• Drainage",
+          isJson: false
+        });
+      }
+
+      // =====================
+      // PHASE 2: LOCATION
+      // =====================
+      if (session.phase === 'location') {
+        return res.json({
+          success: true,
+          reply:
+            `Got it! This is a ${session.category} issue.\n` +
+            "Where exactly is this located?\n\n" +
+            "Example: 'Anna Nagar Main Road near Metro Station'",
+          isJson: false
+        });
+      }
+
+      // =====================
+      // PHASE 3: SEVERITY
+      // =====================
+      if (session.phase === 'severity') {
+        return res.json({
+          success: true,
+          reply: "What is the severity of this issue? (Low / Medium / High)",
+          isJson: false
+        });
+      }
+
+      // =====================
+      // PHASE 4: COMPLETE
+      // =====================
+      if (session.phase === 'complete') {
+        const finalResponse = {
+          readyToSubmit: true,
+          issueData: {
+            category: session.category,
+            description: session.rawDescription,
+            location: session.location,
+            severity: session.severity
+          }
+        };
+
+        this.clearSession(userId);
+
+        return res.json({
+          success: true,
+          reply: finalResponse,
+          isJson: true
+        });
+      }
+
+      // Fallback
+      return res.json({
+        success: true,
+        reply: "Type 'reset' to start a new issue.",
+        isJson: false
+      });
+
+    } catch (error) {
+      console.error('Chat Error:', error);
+      res.status(500).json({
+        success: false,
+        reply: "System error. Please try again."
+      });
+    }
+  }
+}
+
+module.exports = new ChatController();

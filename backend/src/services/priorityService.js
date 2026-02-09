@@ -29,7 +29,15 @@ class PriorityService {
     else if (historicalData.unresolvedCount > 3) score += 1;
     
     // 5. Time-sensitive keywords (0-1 point)
-    const urgentKeywords = ['emergency', 'urgent', 'dangerous', 'blocking', 'accident'];
+    const urgentKeywords = ['emergency',
+  'urgent',
+  'dangerous',
+  'blocking',
+  'accident',
+  'accidents',
+  'traffic',
+  'jam',
+  'congestion'];
     const hasUrgent = urgentKeywords.some(kw => 
       issue.description.toLowerCase().includes(kw)
     );

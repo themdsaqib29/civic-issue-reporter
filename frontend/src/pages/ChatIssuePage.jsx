@@ -66,32 +66,7 @@ function ChatIssuePage() {
     }
   };
 
-  /*const handleSubmitIssue = async () => {
-    try {
-      setLoading(true);
-      
-      // Submit issue to backend
-      const response = await apiClient.post('/issues/report', {
-        title: `${issueData.category} Issue`,
-        description: issueData.description,
-        category: issueData.category,
-        location_address: issueData.location,
-        // You'll add GPS coordinates later
-        location_lat: 13.0827, // Default Chennai coords for now
-        location_lng: 80.2707
-      });
-
-      if (response.data.success) {
-        alert('Issue submitted successfully!');
-        navigate('/');
-      }
-    } catch (error) {
-      console.error('Submit error:', error);
-      alert('Failed to submit issue');
-    } finally {
-      setLoading(false);
-    }
-  };*/
+  
 
   const handleSubmitIssue = async () => {
     try {
