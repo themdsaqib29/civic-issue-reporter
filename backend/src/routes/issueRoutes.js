@@ -7,5 +7,6 @@ const { verifyToken } = require('../middleware/auth');
 router.post('/', verifyToken, issueController.createIssue);
 router.get('/', verifyToken, issueController.getAllIssues);
 router.get('/:id', verifyToken, issueController.getIssueById);
+router.get('/:id/email-preview', verifyToken, issueController.previewEmail);
 
 module.exports = router;

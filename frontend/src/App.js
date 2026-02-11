@@ -4,6 +4,10 @@ import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ChatIssuePage from './pages/ChatIssuePage';
+import IssuesListPage from './pages/IssuesListPage';
+import StatsPage from './pages/StatsPage';
+
+
 
 function App() {
   return (
@@ -13,6 +17,10 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/report-issue" element={<ChatIssuePage />} />
+        <Route path="/issues" element={<IssuesListPage />} />
+        <Route path="/stats" element={<StatsPage />} />
+
+
       </Routes>
     </BrowserRouter>
   );

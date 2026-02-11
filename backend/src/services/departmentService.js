@@ -11,18 +11,20 @@ class DepartmentService {
       
       const location = locationAddress.toLowerCase();
       
-      // North Chennai areas
-      if (/(north|tondiarpet|royapuram|washermanpet|perambur|kolathur|anna nagar|ambattur)/.test(location)) {
-        zone = 'North Chennai';
-      }
-      // Central Chennai (default)
-      else if (/(central|t nagar|nungambakkam|kodambakkam|saidapet|vadapalani)/.test(location)) {
-        zone = 'Central Chennai';
-      }
-      // South Chennai
-      else if (/(south|adyar|guindy|velachery|pallavaram|tambaram)/.test(location)) {
-        zone = 'South Chennai';
-      }
+      // NORTH
+if (/(anna nagar|ambattur|kolathur|perambur|tondiarpet|royapuram|washermanpet)/.test(location)) {
+  zone = 'North Chennai';
+}
+
+// SOUTH
+else if (/(adyar|guindy|velachery|tambaram|pallavaram|sholinganallur|porur|alandur|kattangulathur)/.test(location)) {
+  zone = 'South Chennai';
+}
+
+// CENTRAL
+else if (/(t nagar|nungambakkam|kodambakkam|vadapalani|egmore|myalpore)/.test(location)) {
+  zone = 'Central Chennai';
+}
       
       // Find department matching category and zone
       const query = `

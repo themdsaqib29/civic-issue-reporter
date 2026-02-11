@@ -9,115 +9,190 @@ function HomePage() {
 
   const handleLogout = () => {
     logout();
+    navigate('/login');
   };
 
   return (
-    <div style={styles.container}>
-      <h1 style={styles.title}>Civic Issue Reporter</h1>
-      <p style={styles.subtitle}>AI-Powered Civic Issue Reporting Platform</p>
-      
-      {isLoggedIn ? (
-        <div style={styles.userSection}>
-          <p style={styles.welcome}>Welcome, {user?.name}!</p>
-          <button 
-            onClick={() => navigate('/report-issue')} 
-            style={styles.reportButton}
-          >
-            Report an Issue
-          </button>
-          <p style={styles.email}>{user?.email}</p>
-          <button onClick={handleLogout} style={styles.logoutButton}>
-            Logout
-          </button>
-        </div>
-      ) : (
-        <div style={styles.buttonGroup}>
-          <button onClick={() => navigate('/login')} style={styles.loginButton}>
-            Login
-          </button>
-          <button onClick={() => navigate('/register')} style={styles.registerButton}>
-            Register
-          </button>
-        </div>
-      )}
+    <div style={styles.wrapper}>
+      <div style={styles.card}>
+        <h1 style={styles.title}>Civic Issue Reporter</h1>
+        <p style={styles.subtitle}>
+          AI-Powered Civic Issue Reporting Platform
+        </p>
+
+        {isLoggedIn ? (
+          <>
+            <h2 style={styles.welcome}>
+              Welcome, {user?.name || 'Citizen'} 👋
+            </h2>
+
+            <div style={styles.buttonGroup}>
+              <button
+                onClick={() => navigate('/report-issue')}
+                style={styles.primaryButton}
+              >
+                🚨 Report an Issue
+              </button>
+
+              <button
+                onClick={() => navigate('/issues')}
+                style={styles.secondaryButton}
+              >
+                📊 View All Issues
+              </button>
+
+              <button
+                onClick={() => navigate('/stats')}
+                style={styles.statsButton}
+              >
+                📈 View Analytics
+              </button>
+            </div>
+
+            <p style={styles.email}>{user?.email}</p>
+
+            <button onClick={handleLogout} style={styles.logoutButton}>
+              Logout
+            </button>
+          </>
+        ) : (
+          <div style={styles.buttonGroup}>
+            <button
+              onClick={() => navigate('/login')}
+              style={styles.loginButton}
+            >
+              Login
+            </button>
+            <button
+              onClick={() => navigate('/register')}
+              style={styles.registerButton}
+            >
+              Register
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 const styles = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
+  wrapper: {
     minHeight: '100vh',
-    backgroundColor: '#f5f5f5',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    background: 'linear-gradient(135deg, #e9ecef, #dee2e6)',
     padding: '20px',
   },
+
+  card: {
+    backgroundColor: 'white',
+    padding: '50px 60px',
+    borderRadius: '16px',
+    boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
+    textAlign: 'center',
+    width: '520px',
+    maxWidth: '100%',
+  },
+
   title: {
-    fontSize: '48px',
-    color: '#333',
+    fontSize: '42px',
     marginBottom: '10px',
-    textAlign: 'center',
+    color: '#212529',
+    fontWeight: '700',
   },
+
   subtitle: {
-    fontSize: '20px',
-    color: '#666',
-    marginBottom: '40px',
-    textAlign: 'center',
+    fontSize: '16px',
+    color: '#6c757d',
+    marginBottom: '35px',
   },
+
+  welcome: {
+    fontSize: '22px',
+    marginBottom: '30px',
+    fontWeight: '600',
+    color: '#343a40',
+  },
+
   buttonGroup: {
     display: 'flex',
-    gap: '20px',
+    flexDirection: 'column',
+    gap: '15px',
+    marginBottom: '25px',
   },
+
+  primaryButton: {
+    padding: '14px',
+    fontSize: '16px',
+    backgroundColor: '#28a745',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: '600',
+  },
+
+  secondaryButton: {
+    padding: '14px',
+    fontSize: '16px',
+    backgroundColor: '#17a2b8',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: '600',
+  },
+
+  statsButton: {
+    padding: '14px',
+    fontSize: '16px',
+    backgroundColor: '#6f42c1',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: '600',
+  },
+
   loginButton: {
-    padding: '12px 30px',
-    fontSize: '18px',
+    padding: '14px',
+    fontSize: '16px',
     backgroundColor: '#007bff',
     color: 'white',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '8px',
     cursor: 'pointer',
+    fontWeight: '600',
   },
+
   registerButton: {
-    padding: '12px 30px',
-    fontSize: '18px',
+    padding: '14px',
+    fontSize: '16px',
     backgroundColor: '#28a745',
     color: 'white',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '8px',
     cursor: 'pointer',
+    fontWeight: '600',
   },
-  userSection: {
-    textAlign: 'center',
-  },
-  welcome: {
-    fontSize: '24px',
-    fontWeight: 'bold',
-    marginBottom: '10px',
-  },
-  reportButton: {
-    padding: '12px 30px',
-    fontSize: '18px',
-    backgroundColor: '#28a745',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    marginTop: '20px',
-  },
+
   email: {
-    color: '#666',
+    fontSize: '14px',
+    color: '#6c757d',
     marginBottom: '20px',
   },
+
   logoutButton: {
-    padding: '12px 30px',
-    fontSize: '18px',
+    padding: '12px',
     backgroundColor: '#dc3545',
     color: 'white',
     border: 'none',
-    borderRadius: '4px',
+    borderRadius: '8px',
     cursor: 'pointer',
+    fontWeight: '600',
+    width: '100%',
   },
 };
 

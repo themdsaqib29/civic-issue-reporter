@@ -1,6 +1,7 @@
 const Issue = require('../models/Issue');
 const priorityService = require('../services/priorityService');
 const departmentService = require('../services/departmentService');
+const emailService = require('../services/emailService');
 
 exports.createIssue = async (req, res) => {
   try {
@@ -173,6 +174,39 @@ exports.getIssueById = async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to fetch issue'
+    });
+  }
+};
+
+// Add this new function:
+exports.previewEmail = async (req, res) => {
+  try {
+    const issueId = req.params.id;
+    const issue = await Issue.findById(issueId);
+    
+    if (!issue) {
+      return res.status(404).json({
+        success: false,
+        error: 'Issue not found'
+      });
+    }
+
+    // Generate email preview
+    const emailPreview = emailService.previewEmail(issue, {
+      name: issue.department_name,
+      email: issue.department_email || 'civic@chennai.gov.in'
+    });
+
+    res.json({
+      success: true,
+      data: emailPreview
+    });
+
+  } catch (error) {
+    console.error('Email preview error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate email preview'
     });
   }
 };
