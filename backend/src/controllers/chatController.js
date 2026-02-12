@@ -2,7 +2,7 @@
 function cleanLocation(message) {
   // Extract only the location part
   const match = message.match(
-    /(near|at|opposite|beside|behind)\s.+/i
+    /(in|near|at|opposite|beside|behind)\s.+/i
   );
 
   if (!match) return null;
@@ -18,6 +18,7 @@ function cleanDescription(message) {
   return message
     .replace(/near\s.+/i, '')
     .replace(/at\s.+/i, '')
+    .replace(/in\s.+/i, '')
     .replace(/opposite\s.+/i, '')
     .replace(/beside\s.+/i, '')
     .replace(/behind\s.+/i, '')
@@ -54,7 +55,7 @@ function extractFromMessage(msg, originalMessage) {
   }
 
   // LOCATION (only if location-like words exist)
-  if (/(near|opposite|beside|behind|at\s|near\s)/.test(msg)) {
+  if (/(in|near|opposite|beside|behind|at\s|near\s)/.test(msg)) {
   extracted.location = originalMessage;
 }
 
