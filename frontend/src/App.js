@@ -6,6 +6,7 @@ import RegisterPage from './pages/RegisterPage';
 import ChatIssuePage from './pages/ChatIssuePage';
 import IssuesListPage from './pages/IssuesListPage';
 import StatsPage from './pages/StatsPage';
+import AdminDashboard from './pages/AdminDashboard';
 
 
 
@@ -19,6 +20,7 @@ function App() {
         <Route path="/report-issue" element={<ChatIssuePage />} />
         <Route path="/issues" element={<IssuesListPage />} />
         <Route path="/stats" element={<StatsPage />} />
+        <Route path="/admin" element={<AdminDashboard />} />
 
 
       </Routes>

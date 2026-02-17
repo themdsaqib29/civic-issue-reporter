@@ -47,6 +47,24 @@ function HomePage() {
               >
                 📈 View Analytics
               </button>
+
+              {user?.role === 'admin' && (
+  <button
+    onClick={() => navigate('/admin')}
+    style={{
+      padding: '14px',
+      fontSize: '16px',
+      backgroundColor: '#dc3545',
+      color: 'white',
+      border: 'none',
+      borderRadius: '8px',
+      cursor: 'pointer',
+      fontWeight: '600',
+    }}
+  >
+    🛡️ Admin Panel
+  </button>
+)}
             </div>
 
             <p style={styles.email}>{user?.email}</p>

@@ -78,6 +78,7 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const pool = require('./config/database');
+const adminRoutes = require('./routes/adminRoutes');
 
 // Load environment variables
 dotenv.config();
@@ -125,6 +126,7 @@ app.get('/api/test-db', async (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/issues', issueRoutes);    // ← THIS LINE IS CRITICAL
 app.use('/api/chat', chatRoutes);
+app.use('/api/admin', adminRoutes);
 
 // 404 handler
 app.use((req, res) => {
