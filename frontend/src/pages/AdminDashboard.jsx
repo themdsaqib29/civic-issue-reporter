@@ -12,6 +12,7 @@ function AdminDashboard() {
   const [selectedIssue, setSelectedIssue] = useState(null);
   const [resolveData, setResolveData] = useState({ resolution_notes: '', resolved_image_url: '' });
   const [resolving, setResolving] = useState(false);
+  const [uploadingAdminImage, setUploadingAdminImage] = useState(false); // NEW STATE
   
   // AI Insights State
   const [aiInsights, setAiInsights] = useState(null);
@@ -53,25 +54,16 @@ function AdminDashboard() {
     try {
       setLoadingInsights(true);
       const response = await apiClient.get('/admin/ai-insights');
-      
-      // Extract the actual data payload
       const result = response.data.data || response.data;
 
-      // Check if the backend AI service threw an error
       if (result.success === false) {
         console.error("Backend AI Error:", result.error);
-        alert("⚠️ AI Error: " + result.error + "\nCheck your VS Code terminal for details.");
         setAiInsights(null);
-      } 
-      // Safely check where the summary data lives
-      else if (result.summary) {
+      } else if (result.summary) {
         setAiInsights(result);
-      } 
-      else if (result.data && result.data.summary) {
+      } else if (result.data && result.data.summary) {
         setAiInsights(result.data);
-      } 
-      else {
-        console.error("Unexpected AI Data Format:", result);
+      } else {
         setAiInsights(null);
       }
     } catch (error) {
@@ -96,7 +88,7 @@ function AdminDashboard() {
 
   const handleResolve = async (issueId) => {
     if (!resolveData.resolved_image_url) {
-      alert('Please provide the resolved image URL');
+      alert('Please provide the resolved image URL (upload a photo or paste a link)');
       return;
     }
     try {
@@ -107,12 +99,52 @@ function AdminDashboard() {
         setSelectedIssue(null);
         setResolveData({ resolution_notes: '', resolved_image_url: '' });
         fetchData();
-        fetchAIInsights(); // Refresh AI predictions after fixing an issue!
+        fetchAIInsights();
       }
     } catch (error) {
       alert('Failed to resolve issue.');
     } finally {
       setResolving(false);
+    }
+  };
+
+  // NEW: Admin Image Upload Function
+  const handleAdminImageUpload = async (file) => {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be less than 5MB');
+      return;
+    }
+    
+    try {
+      setUploadingAdminImage(true);
+      const formData = new FormData();
+      formData.append('image', file);
+      
+      const apiKey = process.env.REACT_APP_IMGBB_API_KEY;
+      if (!apiKey) {
+          alert('Error: ImgBB API key is missing from environment variables.');
+          return;
+      }
+
+      const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setResolveData({ ...resolveData, resolved_image_url: data.data.url });
+        alert('✅ Image uploaded successfully!');
+      } else {
+        alert('❌ Upload failed.');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Upload failed: ' + error.message);
+    } finally {
+      setUploadingAdminImage(false);
     }
   };
 
@@ -126,7 +158,6 @@ function AdminDashboard() {
 
   return (
     <div style={styles.container}>
-      {/* Header */}
       <div style={styles.header}>
         <div>
           <h1 style={styles.headerTitle}>🛡️ Admin Command Center</h1>
@@ -135,7 +166,6 @@ function AdminDashboard() {
         <button onClick={() => navigate('/')} style={styles.backButton}>← Back</button>
       </div>
 
-      {/* AI INSIGHTS SECTION (NEW) */}
       <div style={styles.aiInsightsSection}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
           <h3 style={{ margin: 0, color: '#6f42c1' }}>✨ Gemini AI Predictive Insights</h3>
@@ -149,7 +179,6 @@ function AdminDashboard() {
         ) : aiInsights ? (
           <>
             <div style={styles.aiSummary}><strong>📊 System Health:</strong> {aiInsights.summary}</div>
-            
             <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
               <div style={{ flex: 1, minWidth: '300px' }}>
                 <h4 style={{ color: '#dc3545', margin: '0 0 10px 0' }}>🚨 Critical Alerts</h4>
@@ -170,7 +199,6 @@ function AdminDashboard() {
         )}
       </div>
 
-      {/* Stats Overview */}
       {stats && (
         <div style={styles.statsGrid}>
           <div style={{ ...styles.statCard, borderTop: '4px solid #007bff' }}>
@@ -192,7 +220,6 @@ function AdminDashboard() {
         </div>
       )}
 
-      {/* Filters */}
       <div style={styles.filterBar}>
         <h3 style={{ margin: 0 }}>📋 Issue Queue</h3>
         <div style={styles.filters}>
@@ -207,7 +234,6 @@ function AdminDashboard() {
         </div>
       </div>
 
-      {/* Issues Table */}
       <div style={styles.issuesContainer}>
         {issues.length === 0 ? (
           <div style={styles.noIssues}>No issues found.</div>
@@ -224,37 +250,85 @@ function AdminDashboard() {
                   <span style={{ ...styles.badge, backgroundColor: '#6c757d' }}>{issue.status}</span>
                 </div>
               </div>
+              
               <div style={{ marginBottom: '15px' }}>
                 <p>{issue.description}</p>
-                <div style={{ fontSize: '13px', color: '#666' }}>📍 {issue.location_address} | 👤 {issue.citizen_name}</div>
+                <div style={{ fontSize: '13px', color: '#666', marginBottom: '10px' }}>📍 {issue.location_address} | 👤 {issue.citizen_name}</div>
+                
+                {/* NEW: Display Citizen's Uploaded Image */}
+                {issue.image_url && (
+                  <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '4px', border: '1px solid #eee', display: 'inline-block' }}>
+                    <p style={{ margin: '0 0 5px 0', fontSize: '12px', fontWeight: 'bold', color: '#666' }}>📸 Citizen Evidence:</p>
+                    <img 
+                      src={issue.image_url} 
+                      alt="Citizen Evidence" 
+                      style={{ maxWidth: '200px', maxHeight: '120px', borderRadius: '4px', border: '1px solid #ddd', cursor: 'pointer' }}
+                      onClick={() => window.open(issue.image_url, '_blank')}
+                    />
+                  </div>
+                )}
               </div>
+
               <div style={styles.actionButtons}>
                 {issue.status === 'Pending' && <button onClick={() => handleStatusUpdate(issue.id, 'Acknowledged')} style={{...styles.btn, backgroundColor: '#17a2b8'}}>👁️ Acknowledge</button>}
                 {issue.status === 'Acknowledged' && <button onClick={() => handleStatusUpdate(issue.id, 'In Progress')} style={{...styles.btn, backgroundColor: '#007bff'}}>🔧 Mark In Progress</button>}
                 {issue.status !== 'Resolved' && issue.status !== 'Closed' && <button onClick={() => setSelectedIssue(issue)} style={{...styles.btn, backgroundColor: '#28a745'}}>✅ Resolve Issue</button>}
-                {issue.resolved_image_url && <a href={issue.resolved_image_url} target="_blank" rel="noreferrer" style={{...styles.btn, backgroundColor: '#fd7e14', textDecoration: 'none'}}>📸 View Proof</a>}
+                {issue.resolved_image_url && <a href={issue.resolved_image_url} target="_blank" rel="noreferrer" style={{...styles.btn, backgroundColor: '#fd7e14', textDecoration: 'none'}}>📸 View Resolution Proof</a>}
               </div>
             </div>
           ))
         )}
       </div>
 
-      {/* Resolve Modal */}
       {selectedIssue && (
         <div style={styles.modalOverlay}>
           <div style={styles.modal}>
-            <h3>✅ Resolve Issue #{selectedIssue.id}</h3>
-            <div style={{ marginBottom: '15px' }}>
-              <label>📸 Resolved Image URL *</label>
-              <input type="text" placeholder="Paste URL here..." value={resolveData.resolved_image_url} onChange={(e) => setResolveData({...resolveData, resolved_image_url: e.target.value})} style={{ width: '100%', padding: '8px' }} />
+            <h3 style={{ marginTop: 0 }}>✅ Resolve Issue #{selectedIssue.id}</h3>
+            
+            {/* NEW: Admin Image Upload Field */}
+            <div style={{ marginBottom: '15px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '8px', border: '1px solid #ddd' }}>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>📸 Upload Resolution Proof <span style={{color: 'red'}}>*</span></label>
+              <input 
+                type="file" 
+                accept="image/*"
+                disabled={uploadingAdminImage}
+                onChange={(e) => handleAdminImageUpload(e.target.files[0])}
+                style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: 'white' }}
+              />
+              {uploadingAdminImage && <small style={{ color: '#007bff', display: 'block', marginTop: '5px' }}>Uploading to server...</small>}
+              
+              <div style={{ marginTop: '10px' }}>
+                <small style={{ color: '#666', display: 'block', marginBottom: '3px' }}>Or paste URL manually:</small>
+                <input 
+                  type="text" 
+                  placeholder="https://i.ibb.co/..." 
+                  value={resolveData.resolved_image_url} 
+                  onChange={(e) => setResolveData({...resolveData, resolved_image_url: e.target.value})} 
+                  style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} 
+                />
+              </div>
+
+              {resolveData.resolved_image_url && (
+                <div style={{ marginTop: '10px', textAlign: 'center' }}>
+                   <img src={resolveData.resolved_image_url} alt="Resolved Preview" style={{ maxHeight: '100px', borderRadius: '4px', border: '1px solid #28a745' }} />
+                </div>
+              )}
             </div>
+
             <div style={{ marginBottom: '20px' }}>
-              <label>📝 Resolution Notes</label>
-              <textarea placeholder="How was it fixed?" value={resolveData.resolution_notes} onChange={(e) => setResolveData({...resolveData, resolution_notes: e.target.value})} style={{ width: '100%', padding: '8px' }} rows={3} />
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>📝 Resolution Notes</label>
+              <textarea 
+                placeholder="Describe what was done to fix this issue..." 
+                value={resolveData.resolution_notes} 
+                onChange={(e) => setResolveData({...resolveData, resolution_notes: e.target.value})} 
+                style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', fontFamily: 'inherit' }} 
+                rows={3} 
+              />
             </div>
+
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-              <button onClick={() => setSelectedIssue(null)} style={{...styles.btn, backgroundColor: '#6c757d'}}>Cancel</button>
-              <button onClick={() => handleResolve(selectedIssue.id)} disabled={resolving} style={{...styles.btn, backgroundColor: '#28a745'}}>{resolving ? 'Resolving...' : 'Confirm Resolution'}</button>
+              <button onClick={() => { setSelectedIssue(null); setResolveData({ resolution_notes: '', resolved_image_url: '' }); }} style={{...styles.btn, backgroundColor: '#6c757d'}}>Cancel</button>
+              <button onClick={() => handleResolve(selectedIssue.id)} disabled={resolving || uploadingAdminImage} style={{...styles.btn, backgroundColor: '#28a745'}}>{resolving ? 'Resolving...' : 'Confirm Resolution'}</button>
             </div>
           </div>
         </div>
@@ -283,12 +357,12 @@ const styles = {
   noIssues: { textAlign: 'center', padding: '40px', backgroundColor: 'white', borderRadius: '8px', color: '#666' },
   issueCard: { backgroundColor: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' },
   issueCardHeader: { display: 'flex', justifyContent: 'space-between', marginBottom: '15px', borderBottom: '1px solid #eee', paddingBottom: '10px' },
-  categoryTag: { backgroundColor: '#e9ecef', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' },
+  categoryTag: { backgroundColor: '#e9ecef', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', color: '#333' },
   badge: { color: 'white', padding: '2px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold' },
   actionButtons: { display: 'flex', gap: '10px', marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #eee', flexWrap: 'wrap' },
-  btn: { padding: '6px 12px', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' },
-  modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
-  modal: { backgroundColor: 'white', padding: '25px', borderRadius: '8px', width: '400px', maxWidth: '90%' }
+  btn: { padding: '6px 12px', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '13px', fontWeight: '500' },
+  modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 },
+  modal: { backgroundColor: 'white', padding: '25px', borderRadius: '8px', width: '450px', maxWidth: '90%', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }
 };
 
 export default AdminDashboard;

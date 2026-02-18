@@ -9,6 +9,8 @@ function ChatIssuePage() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [issueData, setIssueData] = useState(null);
+  const [imageUrl, setImageUrl] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
 
@@ -26,12 +28,10 @@ function ChatIssuePage() {
     const userMessage = input;
     setInput('');
     
-    // Add user message to chat
     setMessages(prev => [...prev, { role: 'user', content: userMessage }]);
     setLoading(true);
 
     try {
-      // Send to backend
       const response = await apiClient.post('/chat/message', {
         message: userMessage,
         conversationHistory: messages.map(m => ({
@@ -41,14 +41,12 @@ function ChatIssuePage() {
       });
 
       if (response.data.isJson && response.data.reply.readyToSubmit) {
-        // Issue data extracted successfully
         setIssueData(response.data.reply.issueData);
         setMessages(prev => [...prev, {
           role: 'bot',
-          content: 'Great! I\'ve gathered all the details. Please review and submit your issue.'
+          content: 'Great! I\'ve gathered all the details. You can optionally attach a photo below, then submit your report.'
         }]);
       } else {
-        // Continue conversation
         const botReply = response.data.isJson ? response.data.reply : response.data.reply;
         setMessages(prev => [...prev, {
           role: 'bot',
@@ -66,31 +64,65 @@ function ChatIssuePage() {
     }
   };
 
-  
+  const handleImageUpload = async (file) => {
+    if (!file) return;
+    
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be less than 5MB');
+      return;
+    }
+    
+    try {
+      setUploadingImage(true);
+      
+      const formData = new FormData();
+      formData.append('image', file);
+      
+      // Use the environment variable for the API key
+      const apiKey = process.env.REACT_APP_IMGBB_API_KEY;
+      
+      if (!apiKey) {
+          alert('Error: ImgBB API key is missing from environment variables.');
+          return;
+      }
+
+      const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setImageUrl(data.data.url);
+        alert('✅ Image attached successfully!');
+      } else {
+        alert('❌ Upload failed. Please try again.');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      alert('Upload failed: ' + error.message);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   const handleSubmitIssue = async () => {
     try {
       setLoading(true);
     
-      console.log('Submitting issue data:', issueData); // DEBUG
-    
-      // Prepare the payload
       const payload = {
         title: `${issueData.category} Issue`,
         description: issueData.description,
         category: issueData.category,
         location_address: issueData.location,
         severity: issueData.severity || 'normal',
-        location_lat: 13.0827, // Default Chennai coords
+        image_url: imageUrl || null,
+        location_lat: 13.0827,
         location_lng: 80.2707
       };
     
-      console.log('Sending payload:', payload); // DEBUG
-    
-      // Submit issue to backend
       const response = await apiClient.post('/issues', payload);
-    
-      console.log('Response:', response.data); // DEBUG
     
       if (response.data.success) {
         alert(`Issue submitted successfully! Priority: ${response.data.priorityLevel}`);
@@ -99,9 +131,6 @@ function ChatIssuePage() {
         alert('Failed to submit issue: ' + (response.data.error || 'Unknown error'));
       }
     } catch (error) {
-      console.error('Submit error:', error);
-      console.error('Error response:', error.response?.data); // DEBUG
-    
       const errorMsg = error.response?.data?.error || error.message || 'Failed to submit issue';
       alert('Error: ' + errorMsg);
     } finally {
@@ -134,6 +163,7 @@ function ChatIssuePage() {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* Conditionally render either the Summary/Upload OR the Chat Input */}
       {issueData ? (
         <div style={styles.issuePreview}>
           <h3>Issue Summary</h3>
@@ -141,9 +171,43 @@ function ChatIssuePage() {
           <p><strong>Description:</strong> {issueData.description}</p>
           <p><strong>Location:</strong> {issueData.location}</p>
           <p><strong>Severity:</strong> {issueData.severity}</p>
+
+          {/* IMAGE UPLOAD IS NOW INSIDE THE SUMMARY SECTION */}
+          <div style={{ marginTop: '15px', marginBottom: '15px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '8px', border: '1px solid #ddd' }}>
+            <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>
+              📸 Attach Photo Evidence (Optional)
+            </label>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => {
+                const file = e.target.files[0];
+                if (file) {
+                  handleImageUpload(file);
+                }
+              }}
+              disabled={uploadingImage}
+              style={{ width: '100%', padding: '8px' }}
+            />
+            
+            {uploadingImage && <div style={{ color: '#007bff', marginTop: '10px' }}>Uploading to server...</div>}
+            
+            {imageUrl && (
+              <div style={{ marginTop: '15px' }}>
+                <img src={imageUrl} alt="Issue Preview" style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px', border: '2px solid #28a745' }} />
+                <button
+                  onClick={() => { setImageUrl(''); }}
+                  style={{ display: 'block', marginTop: '10px', padding: '6px 12px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}
+                >
+                  ❌ Remove Photo
+                </button>
+              </div>
+            )}
+          </div>
+
           <button
             onClick={handleSubmitIssue}
-            disabled={loading}
+            disabled={loading || uploadingImage} // Prevent submission while image is uploading
             style={styles.submitButton}
           >
             {loading ? 'Submitting...' : 'Submit Issue'}
