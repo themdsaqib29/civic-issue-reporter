@@ -36,7 +36,7 @@ function extractFromMessage(msg, originalMessage) {
   const extracted = {};
 
   // CATEGORY
-  if (/pothole|road|crack|tar|highway|pavement|asphalt/.test(msg))
+  if (/pothole|crack|tar|highway|pavement|asphalt/.test(msg))
     extracted.category = 'Road Maintenance';
   else if (/garbage|waste|trash|dustbin|cleaning|litter|dump/.test(msg))
     extracted.category = 'Garbage Collection';
@@ -55,7 +55,7 @@ function extractFromMessage(msg, originalMessage) {
   }
 
   // LOCATION (only if location-like words exist)
-  if (/(in|near|opposite|beside|behind|at\s|near\s)/.test(msg)) {
+  if (/(in|opposite|beside|behind|at\s|near\s)/.test(msg)) {
   extracted.location = originalMessage;
 }
 
