@@ -1,4 +1,6 @@
 const pool = require('../config/database');
+const aiInsightsService = require('../services/aiInsightsService');
+
 
 // Get all issues sorted by priority (admin view)
 exports.getAllIssues = async (req, res) => {
@@ -253,6 +255,44 @@ exports.updateIssueStatus = async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: error.message 
+    });
+  }
+};
+
+// AI-powered insights endpoint
+exports.getAIInsights = async (req, res) => {
+  try {
+    const insights = await aiInsightsService.generateInsights();
+    
+    res.json({
+      success: true,
+      data: insights
+    });
+    
+  } catch (error) {
+    console.error('AI Insights error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate AI insights'
+    });
+  }
+};
+
+// Department-specific AI analysis
+exports.analyzeDepartment = async (req, res) => {
+  try {
+    const { departmentId } = req.params;
+    const analysis = await aiInsightsService.analyzeDepartment(departmentId);
+    
+    res.json({
+      success: true,
+      data: analysis
+    });
+    
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
     });
   }
 };
