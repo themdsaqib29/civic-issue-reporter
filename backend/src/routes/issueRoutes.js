@@ -4,6 +4,7 @@ const issueController = require('../controllers/issueController');
 const { verifyToken } = require('../middleware/auth');
 
 // All issue routes require authentication
+router.get('/my-issues', verifyToken, issueController.getMyIssues);
 router.post('/', verifyToken, issueController.createIssue);
 router.get('/', verifyToken, issueController.getAllIssues);
 router.get('/:id', verifyToken, issueController.getIssueById);

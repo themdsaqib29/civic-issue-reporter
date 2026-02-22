@@ -394,5 +394,25 @@ Chennai Civic Issue Reporter
     });
   }
 };
+
+// Get issues reported by the logged-in user
+exports.getMyIssues = async (req, res) => {
+  try {
+    const userId = req.userId; // Extracted from JWT token
+    const query = `
+      SELECT i.*, d.name as department_name 
+      FROM issues i
+      LEFT JOIN departments d ON i.department_id = d.id
+      WHERE i.user_id = $1
+      ORDER BY i.created_at DESC
+    `;
+    const result = await pool.query(query, [userId]);
+    
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Get my issues error:', error);
+    res.status(500).json({ success: false, error: 'Failed to fetch your issues' });
+  }
+};
 // Alias for chat
 exports.reportIssue = exports.createIssue;

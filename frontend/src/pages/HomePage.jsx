@@ -38,7 +38,7 @@ function HomePage() {
                 onClick={() => navigate('/issues')}
                 style={styles.secondaryButton}
               >
-                📊 View All Issues
+                📋 All Reported Issues
               </button>
 
               <button

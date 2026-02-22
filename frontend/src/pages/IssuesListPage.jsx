@@ -1,26 +1,89 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 
 function IssuesListPage() {
   const [issues, setIssues] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [votedIssues, setVotedIssues] = useState(new Set());
+  const [searchArea, setSearchArea] = useState('');
+
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchIssues();
+  // -----------------------------
+  // Check Votes
+  // -----------------------------
+  const checkVotes = useCallback(async (issuesList) => {
+    try {
+      const checks = issuesList.map(issue =>
+        apiClient
+          .get(`/issues/${issue.id}/vote-check`)
+          .then(res => ({ id: issue.id, voted: res.data.hasVoted }))
+          .catch(() => ({ id: issue.id, voted: false }))
+      );
+
+      const results = await Promise.all(checks);
+      const voted = new Set(results.filter(r => r.voted).map(r => r.id));
+      setVotedIssues(voted);
+    } catch (error) {
+      console.error('Error checking vote statuses', error);
+    }
   }, []);
 
-  const fetchIssues = async () => {
+  // -----------------------------
+  // Fetch Issues
+  // -----------------------------
+  const fetchIssues = useCallback(async () => {
     try {
+      setLoading(true);
       const response = await apiClient.get('/issues');
       if (response.data.success) {
-        setIssues(response.data.data);
+        const data = response.data.data;
+        setIssues(data);
+        await checkVotes(data);
       }
     } catch (error) {
       console.error('Fetch error:', error);
     } finally {
       setLoading(false);
+    }
+  }, [checkVotes]);
+
+  // -----------------------------
+  // useEffect (Corrected)
+  // -----------------------------
+  useEffect(() => {
+    fetchIssues();
+  }, [fetchIssues]);
+
+  // -----------------------------
+  // Handle Vote
+  // -----------------------------
+  const handleVote = async (e, issueId) => {
+    e.stopPropagation();
+
+    try {
+      const hasVoted = votedIssues.has(issueId);
+
+      if (hasVoted) {
+        await apiClient.delete(`/issues/${issueId}/vote`);
+        setVotedIssues(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(issueId);
+          return newSet;
+        });
+      } else {
+        await apiClient.post(`/issues/${issueId}/vote`);
+        setVotedIssues(prev => new Set([...prev, issueId]));
+      }
+
+      fetchIssues();
+    } catch (error) {
+      if (error.response?.status === 401 || error.response?.status === 403) {
+        alert('You must be logged in to vote!');
+      } else {
+        alert(error.response?.data?.error || 'Failed to process vote');
+      }
     }
   };
 
@@ -36,6 +99,10 @@ function IssuesListPage() {
     return 'LOW';
   };
 
+  const filteredIssues = issues.filter(issue =>
+    issue.location_address?.toLowerCase().includes(searchArea.toLowerCase())
+  );
+
   if (loading) {
     return <div style={styles.loading}>Loading issues...</div>;
   }
@@ -45,47 +112,59 @@ function IssuesListPage() {
       <div style={styles.header}>
         <h2>📋 All Reported Issues</h2>
         <div style={styles.headerButtons}>
-          <button onClick={() => navigate('/report-issue')} style={styles.reportButton}>
+          <button
+            onClick={() => navigate('/my-issues')}
+            style={{ ...styles.btn, backgroundColor: '#17a2b8' }}
+          >
+            👤 My Reports
+          </button>
+          <button
+            onClick={() => navigate('/report-issue')}
+            style={{ ...styles.btn, backgroundColor: '#28a745' }}
+          >
             ➕ Report New Issue
           </button>
-          <button onClick={() => navigate('/')} style={styles.backButton}>
+          <button
+            onClick={() => navigate('/')}
+            style={{ ...styles.btn, backgroundColor: '#6c757d' }}
+          >
             🏠 Home
           </button>
         </div>
       </div>
 
-      <div style={styles.stats}>
-        <div style={styles.statCard}>
-          <div style={styles.statNumber}>{issues.length}</div>
-          <div style={styles.statLabel}>Total Issues</div>
-        </div>
-        <div style={styles.statCard}>
-          <div style={styles.statNumber}>
-            {issues.filter(i => i.priority_score >= 7).length}
-          </div>
-          <div style={styles.statLabel}>High Priority</div>
-        </div>
-        <div style={styles.statCard}>
-          <div style={styles.statNumber}>
-            {issues.filter(i => i.status === 'Pending').length}
-          </div>
-          <div style={styles.statLabel}>Pending</div>
-        </div>
+      <div style={{ marginBottom: '20px' }}>
+        <input
+          type="text"
+          placeholder="🔍 Search by Area..."
+          value={searchArea}
+          onChange={(e) => setSearchArea(e.target.value)}
+          style={{
+            width: '100%',
+            padding: '12px 15px',
+            borderRadius: '8px',
+            border: '1px solid #ccc',
+            fontSize: '16px'
+          }}
+        />
       </div>
 
       <div style={styles.issuesList}>
-        {issues.length === 0 ? (
+        {filteredIssues.length === 0 ? (
           <div style={styles.noIssues}>
-            <p>No issues reported yet.</p>
-            <button onClick={() => navigate('/report-issue')} style={styles.reportButton}>
-              Report First Issue
-            </button>
+            <p>No issues found for this area.</p>
           </div>
         ) : (
-          issues.map((issue) => (
+          filteredIssues.map(issue => (
             <div key={issue.id} style={styles.issueCard}>
               <div style={styles.cardHeader}>
-                <div style={styles.categoryBadge}>{issue.category}</div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <strong>#{issue.id}</strong>
+                  <div style={styles.categoryBadge}>
+                    {issue.category}
+                  </div>
+                </div>
+
                 <div
                   style={{
                     ...styles.priorityBadge,
@@ -95,58 +174,27 @@ function IssuesListPage() {
                   {getPriorityLabel(issue.priority_score)}
                 </div>
               </div>
-              
-              <h3 style={styles.title}>{issue.title}</h3>
-              <p style={styles.description}>{issue.description}</p>
-              
-              <div style={styles.metaRow}>
-                <span style={styles.metaItem}>
-                  📍 {issue.location_address}
-                </span>
-              </div>
 
-              <div style={styles.metaRow}>
-                <span style={styles.metaItem}>
-                  🏢 {issue.department_name || 'Unassigned'}
-                </span>
-                <span style={styles.metaItem}>
-                  📊 Priority: {issue.priority_score}/10
-                </span>
-              </div>
-              
-              <div style={styles.cardFooter}>
-                <span style={styles.status}>
-                  {issue.status === 'Pending' ? '🕐' : '✅'} {issue.status}
-                </span>
+              <h3>{issue.title}</h3>
+              <p>{issue.description}</p>
 
-<button
-  onClick={async (e) => {
-    e.stopPropagation();
-    try {
-      const response = await apiClient.get(`/issues/${issue.id}/email-preview`);
-      if (response.data.success) {
-        const { to, subject, body } = response.data.data;
-        alert(`EMAIL PREVIEW\n\nTo: ${to}\n\nSubject: ${subject}\n\n${body}`);
-      }
-    } catch (err) {
-      alert('Failed to load email preview');
-    }
-  }}
-  style={{
-    padding: '6px 12px',
-    backgroundColor: '#007bff',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    fontSize: '12px',
-    cursor: 'pointer',
-  }}
->
-  📧 View Email
-</button>
-                <span style={styles.date}>
-                  {new Date(issue.created_at).toLocaleDateString('en-IN')}
-                </span>
+              <div style={styles.voteSection}>
+                <button
+                  onClick={(e) => handleVote(e, issue.id)}
+                  style={{
+                    ...styles.voteButton,
+                    backgroundColor: votedIssues.has(issue.id)
+                      ? '#28a745'
+                      : '#e9ecef',
+                    color: votedIssues.has(issue.id)
+                      ? 'white'
+                      : '#333'
+                  }}
+                >
+                  {votedIssues.has(issue.id)
+                    ? '✓ Voted'
+                    : '👍 Upvote'} ({issue.vote_count || 0})
+                </button>
               </div>
             </div>
           ))
@@ -157,154 +205,51 @@ function IssuesListPage() {
 }
 
 const styles = {
-  container: {
-    padding: '20px',
-    maxWidth: '1200px',
-    margin: '0 auto',
-    backgroundColor: '#f5f5f5',
-    minHeight: '100vh',
-  },
+  container: { padding: '20px' },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '30px',
-    backgroundColor: 'white',
-    padding: '20px',
-    borderRadius: '8px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+    marginBottom: '20px'
   },
-  headerButtons: {
-    display: 'flex',
-    gap: '10px',
-  },
-  backButton: {
-    padding: '10px 20px',
-    backgroundColor: '#6c757d',
-    color: 'white',
+  headerButtons: { display: 'flex', gap: '10px' },
+  btn: {
+    padding: '8px 16px',
     border: 'none',
     borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '14px',
-  },
-  reportButton: {
-    padding: '10px 20px',
-    backgroundColor: '#28a745',
     color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-    fontSize: '14px',
+    cursor: 'pointer'
   },
-  loading: {
-    textAlign: 'center',
-    padding: '100px 20px',
-    fontSize: '18px',
-    color: '#666',
-  },
-  stats: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '20px',
-    marginBottom: '30px',
-  },
-  statCard: {
-    backgroundColor: 'white',
-    padding: '20px',
-    borderRadius: '8px',
-    textAlign: 'center',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-  },
-  statNumber: {
-    fontSize: '36px',
-    fontWeight: 'bold',
-    color: '#007bff',
-  },
-  statLabel: {
-    fontSize: '14px',
-    color: '#666',
-    marginTop: '5px',
-  },
-  issuesList: {
-    display: 'grid',
-    gap: '20px',
-  },
-  noIssues: {
-    textAlign: 'center',
-    padding: '60px 20px',
-    backgroundColor: 'white',
-    borderRadius: '8px',
-  },
+  loading: { textAlign: 'center', padding: '50px' },
+  issuesList: { display: 'grid', gap: '20px' },
+  noIssues: { textAlign: 'center', padding: '40px' },
   issueCard: {
     backgroundColor: 'white',
     padding: '20px',
-    borderRadius: '8px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-    transition: 'transform 0.2s, box-shadow 0.2s',
-    cursor: 'pointer',
+    borderRadius: '8px'
   },
   cardHeader: {
     display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '15px',
+    justifyContent: 'space-between'
   },
   categoryBadge: {
-    fontSize: '13px',
-    color: '#007bff',
-    fontWeight: '600',
     backgroundColor: '#e7f3ff',
-    padding: '4px 12px',
-    borderRadius: '12px',
+    padding: '4px 10px',
+    borderRadius: '12px'
   },
   priorityBadge: {
-    padding: '4px 12px',
+    padding: '4px 10px',
     borderRadius: '12px',
-    color: 'white',
-    fontSize: '12px',
-    fontWeight: 'bold',
+    color: 'white'
   },
-  title: {
-    margin: '10px 0',
-    fontSize: '18px',
-    color: '#333',
+  voteSection: {
+    marginTop: '15px'
   },
-  description: {
-    color: '#666',
-    lineHeight: '1.6',
-    marginBottom: '15px',
-  },
-  metaRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    fontSize: '14px',
-    color: '#666',
-    marginBottom: '10px',
-  },
-  metaItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '5px',
-  },
-  cardFooter: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: '15px',
-    borderTop: '1px solid #eee',
-    marginTop: '15px',
-  },
-  status: {
-    fontSize: '14px',
-    padding: '4px 12px',
-    backgroundColor: '#fff3cd',
-    color: '#856404',
-    borderRadius: '4px',
-  },
-  date: {
-    fontSize: '13px',
-    color: '#999',
-  },
+  voteButton: {
+    padding: '6px 14px',
+    borderRadius: '20px',
+    cursor: 'pointer',
+    fontWeight: 'bold'
+  }
 };
 
 export default IssuesListPage;

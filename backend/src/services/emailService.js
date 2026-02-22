@@ -36,6 +36,7 @@ ISSUE DETAILS:
 - Category: ${issue.category}
 - Priority: ${priorityText} (${issue.priority_score}/10)
 - Location: ${issue.location_address}
+- Photo Evidence: ${issue.image_url ? issue.image_url : 'No photo provided'}
 - Description: ${issue.description}
 - Reported on: ${new Date(issue.created_at).toLocaleString('en-IN')}
 - Issue ID: #${issue.id}
@@ -95,6 +96,7 @@ Issue ID      : #${issue.id}
 Category      : ${issue.category}
 Priority Level: ${priorityText} (${issue.priority_score}/10)
 Location      : ${issue.location_address}
+Photo Evidence: ${issue.image_url ? issue.image_url : 'No photo provided'}
 Description   : ${issue.description}
 Reported on   : ${new Date(issue.created_at).toLocaleString('en-IN')}
 

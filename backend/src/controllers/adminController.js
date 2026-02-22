@@ -9,7 +9,9 @@ exports.getAllIssues = async (req, res) => {
     
     let query = `
       SELECT 
-        issues.*,
+        issues.id, issues.title, issues.description, issues.category, 
+        issues.status, issues.priority_score, issues.location_address, 
+        issues.image_url, issues.resolved_image_url, issues.created_at,
         departments.name as department_name,
         departments.email as department_email,
         users.name as citizen_name,

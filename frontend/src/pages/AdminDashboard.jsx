@@ -12,7 +12,7 @@ function AdminDashboard() {
   const [selectedIssue, setSelectedIssue] = useState(null);
   const [resolveData, setResolveData] = useState({ resolution_notes: '', resolved_image_url: '' });
   const [resolving, setResolving] = useState(false);
-  const [uploadingAdminImage, setUploadingAdminImage] = useState(false); // NEW STATE
+  const [uploadingAdminImage, setUploadingAdminImage] = useState(false);
   
   // AI Insights State
   const [aiInsights, setAiInsights] = useState(null);
@@ -20,9 +20,10 @@ function AdminDashboard() {
 
   const navigate = useNavigate();
 
+  // ONLY fetch raw data on load/filter change. Do NOT auto-fetch AI.
   useEffect(() => {
     fetchData();
-    fetchAIInsights();
+    loadCachedInsights(); 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
@@ -41,6 +42,7 @@ function AdminDashboard() {
       if (issuesRes.data.success) setIssues(issuesRes.data.data);
       if (statsRes.data.success) setStats(statsRes.data.data);
     } catch (error) {
+      console.error("Dashboard Fetch Error:", error);
       if (error.response?.status === 403 || error.response?.status === 401) {
         alert('Admin access required.');
         navigate('/');
@@ -50,6 +52,15 @@ function AdminDashboard() {
     }
   };
 
+  // 1. Load from Browser Memory (Free & Instant)
+  const loadCachedInsights = () => {
+    const cached = localStorage.getItem('civic_ai_insights');
+    if (cached) {
+      setAiInsights(JSON.parse(cached));
+    }
+  };
+
+  // 2. Fetch Fresh Data from Gemini (Only on button click)
   const fetchAIInsights = async () => {
     try {
       setLoadingInsights(true);
@@ -58,17 +69,17 @@ function AdminDashboard() {
 
       if (result.success === false) {
         console.error("Backend AI Error:", result.error);
-        setAiInsights(null);
-      } else if (result.summary) {
-        setAiInsights(result);
-      } else if (result.data && result.data.summary) {
-        setAiInsights(result.data);
+        alert("⚠️ AI Error: " + result.error);
       } else {
-        setAiInsights(null);
+        const insightsData = result.summary ? result : result.data;
+        setAiInsights(insightsData);
+        // Save to browser memory
+        localStorage.setItem('civic_ai_insights', JSON.stringify(insightsData));
+        alert("✅ AI Analysis Updated & Cached!");
       }
     } catch (error) {
       console.error('AI Insights API Error:', error);
-      setAiInsights(null);
+      alert('Failed to connect to AI Service.');
     } finally {
       setLoadingInsights(false);
     }
@@ -99,7 +110,8 @@ function AdminDashboard() {
         setSelectedIssue(null);
         setResolveData({ resolution_notes: '', resolved_image_url: '' });
         fetchData();
-        fetchAIInsights();
+        // Force an AI refresh when a ticket is resolved so the predictions stay accurate
+        fetchAIInsights(); 
       }
     } catch (error) {
       alert('Failed to resolve issue.');
@@ -108,7 +120,6 @@ function AdminDashboard() {
     }
   };
 
-  // NEW: Admin Image Upload Function
   const handleAdminImageUpload = async (file) => {
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
@@ -123,7 +134,7 @@ function AdminDashboard() {
       
       const apiKey = process.env.REACT_APP_IMGBB_API_KEY;
       if (!apiKey) {
-          alert('Error: ImgBB API key is missing from environment variables.');
+          alert('Error: ImgBB API key is missing from frontend .env');
           return;
       }
 
@@ -195,7 +206,7 @@ function AdminDashboard() {
             </div>
           </>
         ) : (
-          <p style={{ color: '#666' }}>AI Insights unavailable. Ensure API key is configured.</p>
+          <p style={{ color: '#666' }}>Click "Refresh AI Analysis" to generate insights.</p>
         )}
       </div>
 
@@ -252,28 +263,50 @@ function AdminDashboard() {
               </div>
               
               <div style={{ marginBottom: '15px' }}>
-                <p>{issue.description}</p>
-                <div style={{ fontSize: '13px', color: '#666', marginBottom: '10px' }}>📍 {issue.location_address} | 👤 {issue.citizen_name}</div>
+                <p style={{ fontSize: '15px', fontWeight: '500' }}>{issue.description}</p>
+                <div style={{ fontSize: '13px', color: '#666', marginBottom: '10px' }}>📍 {issue.location_address} | 👤 {issue.citizen_name || 'Citizen'}</div>
                 
-                {/* NEW: Display Citizen's Uploaded Image */}
-                {issue.image_url && (
-                  <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#f8f9fa', borderRadius: '4px', border: '1px solid #eee', display: 'inline-block' }}>
-                    <p style={{ margin: '0 0 5px 0', fontSize: '12px', fontWeight: 'bold', color: '#666' }}>📸 Citizen Evidence:</p>
-                    <img 
-                      src={issue.image_url} 
-                      alt="Citizen Evidence" 
-                      style={{ maxWidth: '200px', maxHeight: '120px', borderRadius: '4px', border: '1px solid #ddd', cursor: 'pointer' }}
-                      onClick={() => window.open(issue.image_url, '_blank')}
-                    />
-                  </div>
-                )}
+                {/* 📸 BEFORE AND AFTER PHOTO GALLERY */}
+                <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', marginTop: '15px' }}>
+                  
+                  {/* BEFORE PHOTO (Citizen) */}
+                  {issue.image_url && (
+                    <div style={{ padding: '10px', backgroundColor: '#fff3cd', borderRadius: '6px', border: '1px solid #ffeeba' }}>
+                      <p style={{ margin: '0 0 5px 0', fontSize: '12px', fontWeight: 'bold', color: '#856404' }}>📸 BEFORE (Reported):</p>
+                      <img 
+                        src={issue.image_url} 
+                        alt="Citizen Evidence" 
+                        style={{ maxWidth: '200px', maxHeight: '130px', borderRadius: '4px', border: '1px solid #ddd', cursor: 'pointer', objectFit: 'cover' }}
+                        onClick={() => window.open(issue.image_url, '_blank')}
+                      />
+                    </div>
+                  )}
+
+                  {/* AFTER PHOTO (Admin) */}
+                  {issue.resolved_image_url && (
+                    <div style={{ padding: '10px', backgroundColor: '#d4edda', borderRadius: '6px', border: '1px solid #c3e6cb' }}>
+                      <p style={{ margin: '0 0 5px 0', fontSize: '12px', fontWeight: 'bold', color: '#155724' }}>✅ AFTER (Resolved):</p>
+                      <img 
+                        src={issue.resolved_image_url} 
+                        alt="Resolution Evidence" 
+                        style={{ maxWidth: '200px', maxHeight: '130px', borderRadius: '4px', border: '1px solid #ddd', cursor: 'pointer', objectFit: 'cover' }}
+                        onClick={() => window.open(issue.resolved_image_url, '_blank')}
+                      />
+                      {issue.resolution_notes && (
+                         <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#155724', maxWidth: '200px', wordWrap: 'break-word' }}>
+                           <strong>Notes:</strong> {issue.resolution_notes}
+                         </p>
+                      )}
+                    </div>
+                  )}
+
+                </div>
               </div>
 
               <div style={styles.actionButtons}>
                 {issue.status === 'Pending' && <button onClick={() => handleStatusUpdate(issue.id, 'Acknowledged')} style={{...styles.btn, backgroundColor: '#17a2b8'}}>👁️ Acknowledge</button>}
                 {issue.status === 'Acknowledged' && <button onClick={() => handleStatusUpdate(issue.id, 'In Progress')} style={{...styles.btn, backgroundColor: '#007bff'}}>🔧 Mark In Progress</button>}
                 {issue.status !== 'Resolved' && issue.status !== 'Closed' && <button onClick={() => setSelectedIssue(issue)} style={{...styles.btn, backgroundColor: '#28a745'}}>✅ Resolve Issue</button>}
-                {issue.resolved_image_url && <a href={issue.resolved_image_url} target="_blank" rel="noreferrer" style={{...styles.btn, backgroundColor: '#fd7e14', textDecoration: 'none'}}>📸 View Resolution Proof</a>}
               </div>
             </div>
           ))
@@ -285,7 +318,6 @@ function AdminDashboard() {
           <div style={styles.modal}>
             <h3 style={{ marginTop: 0 }}>✅ Resolve Issue #{selectedIssue.id}</h3>
             
-            {/* NEW: Admin Image Upload Field */}
             <div style={{ marginBottom: '15px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '8px', border: '1px solid #ddd' }}>
               <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>📸 Upload Resolution Proof <span style={{color: 'red'}}>*</span></label>
               <input 
@@ -354,7 +386,7 @@ const styles = {
   filterSelect: { padding: '6px 10px', borderRadius: '4px', border: '1px solid #ccc' },
   refreshButton: { padding: '6px 12px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' },
   issuesContainer: { display: 'flex', flexDirection: 'column', gap: '15px' },
-  noIssues: { textAlign: 'center', padding: '40px', backgroundColor: 'white', borderRadius: '8px', color: '#666' },
+  noIssues: { textAlign: 'center', padding: '40px', backgroundColor: 'white', borderRadius: '8px', color: '#dc3545', fontWeight: 'bold' },
   issueCard: { backgroundColor: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' },
   issueCardHeader: { display: 'flex', justifyContent: 'space-between', marginBottom: '15px', borderBottom: '1px solid #eee', paddingBottom: '10px' },
   categoryTag: { backgroundColor: '#e9ecef', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', color: '#333' },
