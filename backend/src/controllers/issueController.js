@@ -244,41 +244,75 @@ exports.sendEmail = async (req, res) => {
 };
 
 // === UPDATED: EMAIL PREVIEW ===
+// === ZERO API COST EMAIL PREVIEW ===
 exports.previewEmail = async (req, res) => {
   try {
-    const issue = await Issue.findById(req.params.id);
-    
-    if (!issue) {
-      return res.status(404).json({ 
-        success: false, 
-        error: 'Issue not found' 
+    const { id } = req.params;
+
+    // Fetch issue + department info directly
+    const query = `
+      SELECT i.*, 
+             d.email AS department_email, 
+             d.name AS department_name
+      FROM issues i
+      LEFT JOIN departments d ON i.department_id = d.id
+      WHERE i.id = $1
+    `;
+
+    const result = await pool.query(query, [id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Issue not found'
       });
     }
 
-    let department = null;
-    if (issue.department_id) {
-      const deptResult = await pool.query(
-        'SELECT * FROM departments WHERE id = $1', 
-        [issue.department_id]
-      );
-      department = deptResult.rows[0];
-    }
+    const issue = result.rows[0];
 
-    const preview = emailService.previewEmail(issue, department);
+    // Reconstruct subject dynamically
+    const subject = `Civic Issue Reported: ${issue.category} (Priority: ${issue.priority_score}/10)`;
+
+    // Reconstruct body dynamically
+    const body = `
+Dear ${issue.department_name || 'Department Official'},
+
+A civic issue has been reported that requires your department's attention.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ISSUE DETAILS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Issue ID       : #${issue.id}
+Category       : ${issue.category}
+Priority Level : ${issue.priority_score}/10
+Location       : ${issue.location_address}
+Reported On    : ${new Date(issue.created_at).toLocaleString('en-IN')}
+
+Description:
+${issue.description}
+
+${issue.image_url ? `Photo Evidence: ${issue.image_url}` : ''}
+
+Please log in to the Admin Dashboard to acknowledge and resolve this issue.
+
+Regards,
+Chennai Civic Issue Reporter
+    `.trim();
 
     res.json({
       success: true,
       data: {
-        ...preview,
-        to: department?.email || 'civic@chennai.gov.in',
-        departmentName: department?.name || 'General'
+        to: issue.department_email || 'Unassigned',
+        subject,
+        body
       }
     });
 
   } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to generate preview' 
+    console.error('Email preview error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate email preview'
     });
   }
 };

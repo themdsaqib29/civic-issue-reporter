@@ -6,6 +6,7 @@ const dotenv = require('dotenv');
 const pool = require('./config/database');
 const adminRoutes = require('./routes/adminRoutes');
 const voteRoutes = require('./routes/voteRoutes');
+const followUpService = require('./services/followUpService');
 
 // Load environment variables
 dotenv.config();
@@ -73,6 +74,8 @@ app.use((err, req, res, next) => {
     error: 'Internal server error' 
   });
 });
+
+followUpService.startScheduler();
 
 // Start server
 app.listen(PORT, () => {

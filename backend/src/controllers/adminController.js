@@ -298,3 +298,56 @@ exports.analyzeDepartment = async (req, res) => {
     });
   }
 };
+
+const followUpService = require('../services/followUpService');
+
+exports.triggerFollowUps = async (req, res) => {
+  try {
+    await followUpService.triggerManualFollowUp();
+    res.json({
+      success: true,
+      message: 'Follow-up emails sent for pending issues'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+// Enhanced Analytics for Charts & Heatmap
+exports.getEnhancedAnalytics = async (req, res) => {
+  try {
+    // 1. Trending Categories
+    const catQuery = `SELECT category as name, COUNT(*)::int as count FROM issues GROUP BY category ORDER BY count DESC`;
+    
+    // 2. Status Breakdown
+    const statQuery = `SELECT status as name, COUNT(*)::int as count FROM issues GROUP BY status`;
+    
+    // 3. Geographic Data for Heatmap
+    const mapQuery = `
+      SELECT id, title, category, priority_score, status, location_lat, location_lng 
+      FROM issues 
+      WHERE location_lat IS NOT NULL AND location_lng IS NOT NULL
+    `;
+
+    const [catRes, statRes, mapRes] = await Promise.all([
+      pool.query(catQuery),
+      pool.query(statQuery),
+      pool.query(mapQuery)
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        categoryData: catRes.rows,
+        statusData: statRes.rows,
+        geoData: mapRes.rows
+      }
+    });
+  } catch (error) {
+    console.error("Analytics Error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};

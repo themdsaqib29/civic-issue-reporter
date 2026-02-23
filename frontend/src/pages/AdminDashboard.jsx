@@ -22,14 +22,15 @@ function AdminDashboard() {
 
   // ONLY fetch raw data on load/filter change. Do NOT auto-fetch AI.
   useEffect(() => {
-    fetchData();
+    fetchData(true); // Pass true to show loading screen on initial load
     loadCachedInsights(); 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
-  const fetchData = async () => {
+  // Modified to accept showLoadingScreen parameter for background refreshes
+  const fetchData = async (showLoadingScreen = true) => {
     try {
-      setLoading(true);
+      if (showLoadingScreen) setLoading(true);
       const params = new URLSearchParams();
       if (filter.status) params.append('status', filter.status);
       if (filter.priority) params.append('priority', filter.priority);
@@ -48,7 +49,7 @@ function AdminDashboard() {
         navigate('/');
       }
     } finally {
-      setLoading(false);
+      if (showLoadingScreen) setLoading(false);
     }
   };
 
@@ -89,7 +90,7 @@ function AdminDashboard() {
     try {
       const response = await apiClient.patch(`/admin/issues/${issueId}/status`, { status: newStatus });
       if (response.data.success) {
-        fetchData();
+        fetchData(false); // Background refresh: prevents scroll jump
         alert(`✅ Status updated to ${newStatus}`);
       }
     } catch (error) {
@@ -109,7 +110,7 @@ function AdminDashboard() {
         alert('✅ Issue resolved! Citizen notified.');
         setSelectedIssue(null);
         setResolveData({ resolution_notes: '', resolved_image_url: '' });
-        fetchData();
+        fetchData(false); // Background refresh: prevents scroll jump
         // Force an AI refresh when a ticket is resolved so the predictions stay accurate
         fetchAIInsights(); 
       }
@@ -174,7 +175,10 @@ function AdminDashboard() {
           <h1 style={styles.headerTitle}>🛡️ Admin Command Center</h1>
           <p style={styles.headerSubtitle}>Chennai Civic Issue Management</p>
         </div>
-        <button onClick={() => navigate('/')} style={styles.backButton}>← Back</button>
+        <button onClick={() => navigate('/admin/analytics')} style={{ padding: '8px 16px', backgroundColor: '#6f42c1', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginRight: '10px', fontWeight: 'bold' }}>
+         📊 Open Advanced Analytics
+       </button>
+       <button onClick={() => navigate('/')} style={styles.backButton}>← Back</button>
       </div>
 
       <div style={styles.aiInsightsSection}>
@@ -234,6 +238,25 @@ function AdminDashboard() {
       <div style={styles.filterBar}>
         <h3 style={{ margin: 0 }}>📋 Issue Queue</h3>
         <div style={styles.filters}>
+          {/* NEW TEST BUTTON */}
+          <button 
+            onClick={async () => {
+              if (window.confirm('Send follow-up emails to all pending issues?')) {
+                try {
+                  const response = await apiClient.post('/admin/trigger-followups');
+                  if (response.data.success) {
+                    alert('✅ Follow-up emails sent! Check backend terminal.');
+                  }
+                } catch (error) {
+                  alert('Failed: ' + error.response?.data?.error);
+                }
+              }
+            }}
+            style={{...styles.refreshButton, backgroundColor: '#dc3545'}}
+          >
+            📧 Send Follow-Ups
+          </button>
+
           <select value={filter.status} onChange={(e) => setFilter({ ...filter, status: e.target.value })} style={styles.filterSelect}>
             <option value="">All Statuses</option>
             <option value="Pending">Pending</option>
@@ -241,7 +264,7 @@ function AdminDashboard() {
             <option value="In Progress">In Progress</option>
             <option value="Resolved">Resolved</option>
           </select>
-          <button onClick={fetchData} style={styles.refreshButton}>🔄 Refresh Queue</button>
+          <button onClick={() => fetchData(true)} style={styles.refreshButton}>🔄 Refresh Queue</button>
         </div>
       </div>
 

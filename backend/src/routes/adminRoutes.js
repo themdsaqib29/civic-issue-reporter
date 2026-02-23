@@ -14,5 +14,7 @@ router.patch('/issues/:id/status', adminController.updateIssueStatus);
 router.post('/issues/:id/resolve', adminController.resolveIssue);
 router.get('/ai-insights', adminController.getAIInsights);
 router.get('/departments/:departmentId/analyze', adminController.analyzeDepartment);
+router.post('/trigger-followups', verifyToken, adminController.triggerFollowUps);
+router.get('/enhanced-analytics', verifyToken, adminController.getEnhancedAnalytics);
 
 module.exports = router;
