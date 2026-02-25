@@ -73,39 +73,87 @@ exports.createIssue = async (req, res) => {
     console.log('Priority Score:', priorityScore);
 
     // === 4. DERIVE PRIORITY LABEL (BUSINESS RULES) ===
+   // === 4. DERIVE PRIORITY LABEL (BUSINESS RULES) ===
     const communityVotes = 0; // SAFE DEFAULT (voting not implemented yet)
 
     let priorityLabel = 'LOW';
-
     if (priorityScore >= 4) priorityLabel = 'MEDIUM';
     if (priorityScore >= 7) priorityLabel = 'HIGH';
 
     // Vote-based escalation
-    if (priorityLabel === 'MEDIUM' && communityVotes >= 10) {
-      priorityLabel = 'HIGH';
-    }
-
-    if (priorityLabel === 'HIGH' && communityVotes >= 20) {
-      priorityLabel = 'URGENT';
-    }
+    if (priorityLabel === 'MEDIUM' && communityVotes >= 10) priorityLabel = 'HIGH';
+    if (priorityLabel === 'HIGH' && communityVotes >= 20) priorityLabel = 'URGENT';
 
     // Severity override
     if (severity && severity.toLowerCase().includes('high')) {
-      if (priorityLabel === 'HIGH') {
-        priorityLabel = 'URGENT';
-      }
+      if (priorityLabel === 'HIGH') priorityLabel = 'URGENT';
     }
 
     console.log('Final Priority Label:', priorityLabel);
 
-    // === 5. PREPARE DATA FOR DB ===
+    // === 5. SMART GEOCODING (CHENNAI AREA DICTIONARY) ===
+    const chennaiAreas = {
+      'vadapalani': { lat: 13.0500, lng: 80.2121 },
+      'anna nagar': { lat: 13.0850, lng: 80.2101 },
+      'velachery':  { lat: 12.9774, lng: 80.2221 },
+      't nagar':    { lat: 13.0418, lng: 80.2341 },
+      'tambaram':   { lat: 12.9249, lng: 80.1000 },
+      'adyar':      { lat: 13.0012, lng: 80.2565 },
+      'pallavaram': { lat: 12.9675, lng: 80.1491 },
+      'mylapore':   { lat: 13.0368, lng: 80.2676 },
+      'mylapore': { lat: 13.0368, lng: 80.2676 },
+  'nungambakkam': { lat: 13.0604, lng: 80.2426 },
+  'besant nagar': { lat: 12.9879, lng: 80.2697 },
+  'sholinganallur': { lat: 12.9010, lng: 80.2279 },
+  'porur': { lat: 13.0463, lng: 80.1624 },
+  'ambattur': { lat: 13.1060, lng: 80.1550 },
+  'perungudi': { lat: 12.9712, lng: 80.2403 },
+  'guindy': { lat: 13.0060, lng: 80.2260 },
+  'triplicane': { lat: 13.0460, lng: 80.2680 },
+  'egmore': { lat: 13.0710, lng: 80.2590 },
+'nanganallur': { lat: 12.9807, lng: 80.1882 },
+  'meenambakkam': { lat: 12.9895, lng: 80.1863 },
+  'chrompet': { lat: 12.9470, lng: 80.1450 },
+  'pallavaram': { lat: 12.9675, lng: 80.1491 },
+  'selaiyur': { lat: 12.9068, lng: 80.1425 },
+  'perungalathur': { lat: 12.9048, lng: 80.0889 },
+  'tambaram': { lat: 12.9249, lng: 80.1000 },
+  'medavakkam': { lat: 12.9171, lng: 80.1923 },
+  'sholinganallur': { lat: 12.9010, lng: 80.2279 },
+  'porur': { lat: 13.0382, lng: 80.1565 },
+  'iadbakkam': { lat: 12.9880, lng: 80.2047 },
+  'alandur': { lat: 12.9975, lng: 80.2006 },
+  'pammal': { lat: 12.9749, lng: 80.1328 },
+  'pazhavanthangal': { lat: 12.9895, lng: 80.1863 },
+  'st thomas mount': { lat: 12.9950, lng: 80.1890 },
+  'mudichur': { lat: 12.9102, lng: 80.0717 },
+  'gerugambakkam': { lat: 13.0136, lng: 80.1353 },
+  'manapakkam': { lat: 13.0213, lng: 80.1832 }
+    };
+
+    let finalLat = location_lat || 13.0827; // Default Chennai
+    let finalLng = location_lng || 80.2707; // Default Chennai
+
+    if (location_address) {
+      const userAddress = location_address.toLowerCase();
+      for (const [area, coords] of Object.entries(chennaiAreas)) {
+        if (userAddress.includes(area)) {
+          finalLat = coords.lat;
+          finalLng = coords.lng;
+          console.log(`📍 Smart Geocoding Match: Found '${area}', setting coords to ${finalLat}, ${finalLng}`);
+          break; // Stop looking once we find a match
+        }
+      }
+    }
+
+    // === 6. PREPARE DATA FOR DB ===
     const issueData = {
       userId: req.userId,
       title: title || `${normalizedCategory} Issue`,
       description,
       category: normalizedCategory,
-      locationLat: location_lat || 13.0827,
-      locationLng: location_lng || 80.2707,
+      locationLat: finalLat, // Use the smart coordinates
+      locationLng: finalLng, // Use the smart coordinates
       locationAddress: location_address || 'Location not specified',
       imageUrl: image_url || null,
       priorityScore,

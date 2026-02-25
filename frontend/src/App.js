@@ -9,6 +9,7 @@ import StatsPage from './pages/StatsPage';
 import AdminDashboard from './pages/AdminDashboard';
 import MyIssuesPage from './pages/MyIssuesPage';
 import AnalyticsDashboard from './pages/AnalyticsDashboard';
+import ManageDeptAdmins from './pages/ManageDeptAdmins';
 
 
 
@@ -25,6 +26,7 @@ function App() {
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/my-issues" element={<MyIssuesPage />} />
         <Route path="/admin/analytics" element={<AnalyticsDashboard />} />
+        <Route path="/admin/manage-dept-admins" element={<ManageDeptAdmins />} />
 
 
       </Routes>

@@ -1,17 +1,21 @@
 const pool = require('../config/database');
+const { getUserDetails } = require('../middleware/adminAuth');
 const aiInsightsService = require('../services/aiInsightsService');
+const followUpService = require('../services/followUpService');
+const emailService = require('../services/emailService');
+const bcrypt = require('bcrypt');
 
-
-// Get all issues sorted by priority (admin view)
+/* ======================================================
+   1. GET ALL ISSUES (Role & Category Aware - OPTION A)
+====================================================== */
 exports.getAllIssues = async (req, res) => {
   try {
     const { status, category, priority } = req.query;
-    
+    const userDetails = await getUserDetails(req.userId);
+
     let query = `
       SELECT 
-        issues.id, issues.title, issues.description, issues.category, 
-        issues.status, issues.priority_score, issues.location_address, 
-        issues.image_url, issues.resolved_image_url, issues.created_at,
+        issues.*,
         departments.name as department_name,
         departments.email as department_email,
         users.name as citizen_name,
@@ -21,23 +25,29 @@ exports.getAllIssues = async (req, res) => {
       LEFT JOIN users ON issues.user_id = users.id
       WHERE 1=1
     `;
-    
+
     const values = [];
     let paramCount = 1;
-    
+
+    // OPTION A: Filter by CATEGORY instead of exact Zone ID
+    if (userDetails.role === 'dept_admin' && userDetails.department_id) {
+      query += ` AND issues.category = (SELECT category FROM departments WHERE id = $${paramCount})`;
+      values.push(userDetails.department_id);
+      paramCount++;
+    }
+
     if (status) {
       query += ` AND issues.status = $${paramCount}`;
       values.push(status);
       paramCount++;
     }
-    
+
     if (category) {
       query += ` AND issues.category = $${paramCount}`;
       values.push(category);
       paramCount++;
     }
-    
-    // Priority filter
+
     if (priority === 'high') {
       query += ` AND issues.priority_score >= 7`;
     } else if (priority === 'medium') {
@@ -45,33 +55,44 @@ exports.getAllIssues = async (req, res) => {
     } else if (priority === 'low') {
       query += ` AND issues.priority_score < 4`;
     }
-    
+
     query += ` ORDER BY issues.priority_score DESC, issues.created_at ASC`;
-    
+
     const result = await pool.query(query, values);
-    
+
     res.json({
       success: true,
-      count: result.rows.length,
+      userRole: userDetails.role,
       data: result.rows
     });
-    
+
   } catch (error) {
-    console.error('Admin get issues error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to fetch issues' 
-    });
+    console.error("Get issues error:", error);
+    res.status(500).json({ success: false, error: error.message });
   }
 };
 
-// Get dashboard stats
+/* ======================================================
+   2. DASHBOARD STATS (Role & Category Aware - OPTION A)
+====================================================== */
 exports.getDashboardStats = async (req, res) => {
   try {
+    const userDetails = await getUserDetails(req.userId);
+
+    let whereClause = '';
+    const values = [];
+
+    // OPTION A: Filter stats by CATEGORY
+    if (userDetails.role === 'dept_admin' && userDetails.department_id) {
+      whereClause = 'WHERE category = (SELECT category FROM departments WHERE id = $1)';
+      values.push(userDetails.department_id);
+    }
+
     const statsQuery = `
       SELECT 
         COUNT(*) as total,
         COUNT(CASE WHEN status = 'Pending' THEN 1 END) as pending,
+        COUNT(CASE WHEN status = 'Acknowledged' THEN 1 END) as acknowledged,
         COUNT(CASE WHEN status = 'In Progress' THEN 1 END) as in_progress,
         COUNT(CASE WHEN status = 'Resolved' THEN 1 END) as resolved,
         COUNT(CASE WHEN priority_score >= 7 THEN 1 END) as high_priority,
@@ -81,102 +102,142 @@ exports.getDashboardStats = async (req, res) => {
           THEN EXTRACT(EPOCH FROM (resolved_at - created_at))/3600 
         END) as avg_resolution_hours
       FROM issues
+      ${whereClause}
     `;
-    
+
     const categoryQuery = `
       SELECT category, COUNT(*) as count
       FROM issues
+      ${whereClause}
       GROUP BY category
       ORDER BY count DESC
     `;
-    
-    const deptQuery = `
-      SELECT 
-        departments.name,
-        COUNT(issues.id) as total,
-        COUNT(CASE WHEN issues.status = 'Resolved' THEN 1 END) as resolved
-      FROM issues
-      LEFT JOIN departments ON issues.department_id = departments.id
-      GROUP BY departments.name
-      ORDER BY total DESC
-    `;
 
-    const [statsResult, categoryResult, deptResult] = await Promise.all([
-      pool.query(statsQuery),
-      pool.query(categoryQuery),
-      pool.query(deptQuery)
+    const [statsResult, categoryResult] = await Promise.all([
+      pool.query(statsQuery, values),
+      pool.query(categoryQuery, values)
     ]);
-    
+
     res.json({
       success: true,
       data: {
         overview: statsResult.rows[0],
         byCategory: categoryResult.rows,
-        byDepartment: deptResult.rows
+        userRole: userDetails.role
       }
     });
-    
+
   } catch (error) {
-    console.error('Stats error:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to fetch stats' 
-    });
+    console.error("Dashboard error:", error);
+    res.status(500).json({ success: false, error: error.message });
   }
 };
 
-// Resolve issue with photo
+/* ======================================================
+   3. UPDATE ISSUE STATUS (OPTION A Auth)
+====================================================== */
+exports.updateIssueStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, notes } = req.body;
+    const userDetails = await getUserDetails(req.userId);
+
+    const validStatuses = ['Pending', 'Acknowledged', 'In Progress'];
+
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Use /resolve endpoint for Resolved status'
+      });
+    }
+
+    // OPTION A Validation: Check if the issue's category matches the admin's category
+    if (userDetails.role === 'dept_admin') {
+      const check = await pool.query(
+        `SELECT i.category as issue_category, d.category as admin_category 
+         FROM issues i, departments d 
+         WHERE i.id = $1 AND d.id = $2`,
+        [id, userDetails.department_id]
+      );
+
+      if (check.rows.length === 0 || check.rows[0].issue_category !== check.rows[0].admin_category) {
+        return res.status(403).json({
+          success: false,
+          error: 'Unauthorized. This issue does not belong to your department category.'
+        });
+      }
+    }
+
+    const result = await pool.query(
+      `UPDATE issues 
+       SET status = $1, resolution_notes = $2, updated_at = NOW()
+       WHERE id = $3 RETURNING *`,
+      [status, notes || null, id]
+    );
+
+    res.json({
+      success: true,
+      message: `Status updated to ${status}`,
+      data: result.rows[0]
+    });
+
+  } catch (error) {
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/* ======================================================
+   4. RESOLVE ISSUE (OPTION A Auth)
+====================================================== */
 exports.resolveIssue = async (req, res) => {
   try {
     const { id } = req.params;
     const { resolution_notes, resolved_image_url } = req.body;
-    
-    // Validate
+    const userDetails = await getUserDetails(req.userId);
+
     if (!resolved_image_url) {
-      return res.status(400).json({
-        success: false,
-        error: 'Resolved image URL is required to close an issue'
-      });
+      return res.status(400).json({ success: false, error: 'Resolved image URL is required' });
     }
-    
-    const query = `
-      UPDATE issues 
-      SET 
-        status = 'Resolved',
-        resolution_notes = $1,
-        resolved_image_url = $2,
-        resolved_at = NOW(),
-        resolved_by = $3,
-        updated_at = NOW()
-      WHERE id = $4
-      RETURNING *
-    `;
-    
-    const result = await pool.query(query, [
-      resolution_notes || 'Issue resolved by admin',
-      resolved_image_url,
-      req.userId,
-      id
-    ]);
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        error: 'Issue not found'
-      });
+
+    // OPTION A Validation: Check if the issue's category matches the admin's category
+    if (userDetails.role === 'dept_admin') {
+      const check = await pool.query(
+        `SELECT i.category as issue_category, d.category as admin_category 
+         FROM issues i, departments d 
+         WHERE i.id = $1 AND d.id = $2`,
+        [id, userDetails.department_id]
+      );
+
+      if (check.rows.length === 0 || check.rows[0].issue_category !== check.rows[0].admin_category) {
+        return res.status(403).json({
+          success: false,
+          error: 'Unauthorized. This issue does not belong to your department category.'
+        });
+      }
     }
-    
-    const issue = result.rows[0];
-    
-    // Get citizen info and send notification
-    const userResult = await pool.query(
-      'SELECT email, name FROM users WHERE id = $1',
-      [issue.user_id]
+
+    const result = await pool.query(
+      `UPDATE issues 
+       SET status = 'Resolved',
+           resolution_notes = $1,
+           resolved_image_url = $2,
+           resolved_at = NOW(),
+           resolved_by = $3,
+           updated_at = NOW()
+       WHERE id = $4 RETURNING *`,
+      [resolution_notes || 'Issue resolved', resolved_image_url, req.userId, id]
     );
-    
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Issue not found' });
+    }
+
+    const issue = result.rows[0];
+
+    // Notify citizen
+    const userResult = await pool.query('SELECT email, name FROM users WHERE id = $1', [issue.user_id]);
     const citizen = userResult.rows[0];
-    const emailService = require('../services/emailService');
-    
+
     if (citizen) {
       try {
         await emailService.transporter.sendMail({
@@ -206,148 +267,100 @@ Regards,
 Chennai Civic Issue Reporter
           `.trim()
         });
-      } catch (emailErr) {
-        console.error('Citizen notification failed:', emailErr.message);
+      } catch (e) {
+        console.error("Citizen email failed:", e.message);
       }
     }
-    
-    res.json({
-      success: true,
-      message: 'Issue resolved successfully. Citizen notified.',
-      data: issue
-    });
-    
+
+    res.json({ success: true, message: 'Issue resolved and citizen notified.', data: issue });
+
   } catch (error) {
-    console.error('Resolve issue error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    console.error("Resolve error:", error);
+    res.status(500).json({ success: false, error: error.message });
   }
 };
 
-// Update issue status (without photo - for intermediate statuses)
-exports.updateIssueStatus = async (req, res) => {
+/* ======================================================
+   5. CREATE DEPARTMENT ADMIN
+====================================================== */
+exports.createDepartmentAdmin = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { status, notes } = req.body;
-    
-    const validStatuses = ['Pending', 'Acknowledged', 'In Progress'];
-    
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Use /resolve endpoint for Resolved status'
-      });
-    }
-    
+    const { name, email, password, department_id } = req.body;
+    const existing = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    if (existing.rows.length > 0) return res.status(400).json({ success: false, error: 'Email exists' });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
     const result = await pool.query(
-      `UPDATE issues SET status = $1, resolution_notes = $2, updated_at = NOW()
-       WHERE id = $3 RETURNING *`,
-      [status, notes || null, id]
+      `INSERT INTO users (name, email, password_hash, role, department_id)
+       VALUES ($1, $2, $3, 'dept_admin', $4)
+       RETURNING id, name, email, role, department_id`,
+      [name, email, hashedPassword, department_id]
     );
-    
-    res.json({
-      success: true,
-      message: `Status updated to ${status}`,
-      data: result.rows[0]
-    });
-    
+
+    res.json({ success: true, message: 'Department admin created', data: result.rows[0] });
   } catch (error) {
-    res.status(500).json({ 
-      success: false, 
-      error: error.message 
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 };
 
-// AI-powered insights endpoint
+/* ======================================================
+   6. AI INSIGHTS
+====================================================== */
 exports.getAIInsights = async (req, res) => {
   try {
     const insights = await aiInsightsService.generateInsights();
-    
-    res.json({
-      success: true,
-      data: insights
-    });
-    
+    res.json({ success: true, data: insights });
   } catch (error) {
-    console.error('AI Insights error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to generate AI insights'
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 };
 
-// Department-specific AI analysis
-exports.analyzeDepartment = async (req, res) => {
-  try {
-    const { departmentId } = req.params;
-    const analysis = await aiInsightsService.analyzeDepartment(departmentId);
-    
-    res.json({
-      success: true,
-      data: analysis
-    });
-    
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-};
-
-const followUpService = require('../services/followUpService');
-
+/* ======================================================
+   7. FOLLOW UPS
+====================================================== */
 exports.triggerFollowUps = async (req, res) => {
   try {
     await followUpService.triggerManualFollowUp();
-    res.json({
-      success: true,
-      message: 'Follow-up emails sent for pending issues'
-    });
+    res.json({ success: true, message: 'Follow-up emails sent' });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    res.status(500).json({ success: false, error: error.message });
   }
 };
 
-// Enhanced Analytics for Charts & Heatmap
+/* ======================================================
+   8. ENHANCED ANALYTICS (Charts + Heatmap)
+====================================================== */
 exports.getEnhancedAnalytics = async (req, res) => {
   try {
-    // 1. Trending Categories
-    const catQuery = `SELECT category as name, COUNT(*)::int as count FROM issues GROUP BY category ORDER BY count DESC`;
-    
-    // 2. Status Breakdown
-    const statQuery = `SELECT status as name, COUNT(*)::int as count FROM issues GROUP BY status`;
-    
-    // 3. Geographic Data for Heatmap
-    const mapQuery = `
-      SELECT id, title, category, priority_score, status, location_lat, location_lng 
-      FROM issues 
-      WHERE location_lat IS NOT NULL AND location_lng IS NOT NULL
-    `;
-
     const [catRes, statRes, mapRes] = await Promise.all([
-      pool.query(catQuery),
-      pool.query(statQuery),
-      pool.query(mapQuery)
+      pool.query(`SELECT category as name, COUNT(*)::int as count FROM issues GROUP BY category ORDER BY count DESC`),
+      pool.query(`SELECT status as name, COUNT(*)::int as count FROM issues GROUP BY status`),
+      pool.query(`SELECT id, title, category, priority_score, status, location_lat, location_lng FROM issues WHERE location_lat IS NOT NULL AND location_lng IS NOT NULL`)
     ]);
 
-    res.json({
-      success: true,
-      data: {
-        categoryData: catRes.rows,
-        statusData: statRes.rows,
-        geoData: mapRes.rows
-      }
-    });
+    res.json({ success: true, data: { categoryData: catRes.rows, statusData: statRes.rows, geoData: mapRes.rows } });
   } catch (error) {
-    console.error("Analytics Error:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+/* ======================================================
+   9. GET DEPARTMENT ADMINS
+====================================================== */
+exports.getDepartmentAdmins = async (req, res) => {
+  try {
+    const query = `
+      SELECT 
+        u.id, u.name, u.email, u.role, u.department_id,
+        d.name as department_name, d.category as department_category
+      FROM users u
+      LEFT JOIN departments d ON u.department_id = d.id
+      WHERE u.role = 'dept_admin'
+      ORDER BY d.name
+    `;
+    const result = await pool.query(query);
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
 };

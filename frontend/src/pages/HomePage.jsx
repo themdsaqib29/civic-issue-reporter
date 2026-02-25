@@ -48,7 +48,7 @@ function HomePage() {
                 📈 View Analytics
               </button>
 
-              {user?.role === 'admin' && (
+             {(user?.role === 'admin' || user?.role === 'dept_admin') && (
   <button
     onClick={() => navigate('/admin')}
     style={{
@@ -62,7 +62,7 @@ function HomePage() {
       fontWeight: '600',
     }}
   >
-    🛡️ Admin Panel
+    {user?.role === 'admin' ? '🛡️ Admin Panel' : '👤 Dept Admin Panel'}
   </button>
 )}
             </div>

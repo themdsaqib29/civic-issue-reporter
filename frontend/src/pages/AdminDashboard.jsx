@@ -8,6 +8,10 @@ function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState({ status: '', priority: '' });
   
+  // Role-Based Access States
+  const [userRole, setUserRole] = useState(null);
+  const [departmentScope, setDepartmentScope] = useState(null);
+
   // Modal State
   const [selectedIssue, setSelectedIssue] = useState(null);
   const [resolveData, setResolveData] = useState({ resolution_notes: '', resolved_image_url: '' });
@@ -20,14 +24,12 @@ function AdminDashboard() {
 
   const navigate = useNavigate();
 
-  // ONLY fetch raw data on load/filter change. Do NOT auto-fetch AI.
   useEffect(() => {
-    fetchData(true); // Pass true to show loading screen on initial load
+    fetchData(true); 
     loadCachedInsights(); 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
-  // Modified to accept showLoadingScreen parameter for background refreshes
   const fetchData = async (showLoadingScreen = true) => {
     try {
       if (showLoadingScreen) setLoading(true);
@@ -40,8 +42,14 @@ function AdminDashboard() {
         apiClient.get('/admin/stats')
       ]);
 
-      if (issuesRes.data.success) setIssues(issuesRes.data.data);
-      if (statsRes.data.success) setStats(statsRes.data.data);
+      if (issuesRes.data.success) {
+        setIssues(issuesRes.data.data);
+        setUserRole(issuesRes.data.userRole); // Capture the role
+      }
+      if (statsRes.data.success) {
+        setStats(statsRes.data.data);
+        setDepartmentScope(statsRes.data.data.departmentScope); // Capture the scope
+      }
     } catch (error) {
       console.error("Dashboard Fetch Error:", error);
       if (error.response?.status === 403 || error.response?.status === 401) {
@@ -53,15 +61,11 @@ function AdminDashboard() {
     }
   };
 
-  // 1. Load from Browser Memory (Free & Instant)
   const loadCachedInsights = () => {
     const cached = localStorage.getItem('civic_ai_insights');
-    if (cached) {
-      setAiInsights(JSON.parse(cached));
-    }
+    if (cached) setAiInsights(JSON.parse(cached));
   };
 
-  // 2. Fetch Fresh Data from Gemini (Only on button click)
   const fetchAIInsights = async () => {
     try {
       setLoadingInsights(true);
@@ -69,18 +73,15 @@ function AdminDashboard() {
       const result = response.data.data || response.data;
 
       if (result.success === false) {
-        console.error("Backend AI Error:", result.error);
         alert("⚠️ AI Error: " + result.error);
       } else {
         const insightsData = result.summary ? result : result.data;
         setAiInsights(insightsData);
-        // Save to browser memory
         localStorage.setItem('civic_ai_insights', JSON.stringify(insightsData));
-        alert("✅ AI Analysis Updated & Cached!");
+        alert("✅ AI Analysis Updated!");
       }
     } catch (error) {
-      console.error('AI Insights API Error:', error);
-      alert('Failed to connect to AI Service.');
+      alert('Failed to connect to AI Service. Main Admin access required.');
     } finally {
       setLoadingInsights(false);
     }
@@ -90,11 +91,11 @@ function AdminDashboard() {
     try {
       const response = await apiClient.patch(`/admin/issues/${issueId}/status`, { status: newStatus });
       if (response.data.success) {
-        fetchData(false); // Background refresh: prevents scroll jump
+        fetchData(false);
         alert(`✅ Status updated to ${newStatus}`);
       }
     } catch (error) {
-      alert('Failed to update status.');
+      alert(error.response?.data?.error || 'Failed to update status.');
     }
   };
 
@@ -110,12 +111,11 @@ function AdminDashboard() {
         alert('✅ Issue resolved! Citizen notified.');
         setSelectedIssue(null);
         setResolveData({ resolution_notes: '', resolved_image_url: '' });
-        fetchData(false); // Background refresh: prevents scroll jump
-        // Force an AI refresh when a ticket is resolved so the predictions stay accurate
-        fetchAIInsights(); 
+        fetchData(false);
+        if (userRole === 'admin') fetchAIInsights(); 
       }
     } catch (error) {
-      alert('Failed to resolve issue.');
+      alert(error.response?.data?.error || 'Failed to resolve issue.');
     } finally {
       setResolving(false);
     }
@@ -127,33 +127,21 @@ function AdminDashboard() {
       alert('Image must be less than 5MB');
       return;
     }
-    
     try {
       setUploadingAdminImage(true);
       const formData = new FormData();
       formData.append('image', file);
       
       const apiKey = process.env.REACT_APP_IMGBB_API_KEY;
-      if (!apiKey) {
-          alert('Error: ImgBB API key is missing from frontend .env');
-          return;
-      }
-
-      const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
-        method: 'POST',
-        body: formData
-      });
-      
+      const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, { method: 'POST', body: formData });
       const data = await response.json();
       
       if (data.success) {
         setResolveData({ ...resolveData, resolved_image_url: data.data.url });
-        alert('✅ Image uploaded successfully!');
       } else {
         alert('❌ Upload failed.');
       }
     } catch (error) {
-      console.error('Upload error:', error);
       alert('Upload failed: ' + error.message);
     } finally {
       setUploadingAdminImage(false);
@@ -166,54 +154,75 @@ function AdminDashboard() {
     return '#28a745';
   };
 
-  if (loading) return <div style={{ textAlign: 'center', marginTop: '50px' }}>Loading Dashboard...</div>;
+  if (loading) return <div style={{ textAlign: 'center', marginTop: '50px', fontSize: '18px' }}>Loading Dashboard...</div>;
 
   return (
     <div style={styles.container}>
+      
+      {/* HEADER */}
       <div style={styles.header}>
         <div>
-          <h1 style={styles.headerTitle}>🛡️ Admin Command Center</h1>
-          <p style={styles.headerSubtitle}>Chennai Civic Issue Management</p>
+          <h1 style={styles.headerTitle}>
+            {userRole === 'admin' ? '🛡️ Main Admin Command Center' : '👤 Department Admin Panel'}
+          </h1>
+          <p style={styles.headerSubtitle}>
+            Chennai Civic Issue Management 
+            {departmentScope === 'department' && ' - (Restricted to Your Department)'}
+          </p>
         </div>
-        <button onClick={() => navigate('/admin/analytics')} style={{ padding: '8px 16px', backgroundColor: '#6f42c1', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginRight: '10px', fontWeight: 'bold' }}>
-         📊 Open Advanced Analytics
-       </button>
-       <button onClick={() => navigate('/')} style={styles.backButton}>← Back</button>
+        <div>
+          {/* ONLY Main Admins see the Analytics Button */}
+          {userRole === 'admin' && (
+            <>
+            <button onClick={() => navigate('/admin/manage-dept-admins')} style={{ padding: '8px 16px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginRight: '10px', fontWeight: 'bold' }}>
+                👥 Manage Dept Admins
+              </button>
+            <button onClick={() => navigate('/admin/analytics')} style={{ padding: '8px 16px', backgroundColor: '#6f42c1', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginRight: '10px', fontWeight: 'bold' }}>
+              📊 Open Advanced Analytics
+            </button>
+            </>
+          )}
+          <button onClick={() => navigate('/')} style={styles.backButton}>← Back</button>
+        </div>
       </div>
 
-      <div style={styles.aiInsightsSection}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-          <h3 style={{ margin: 0, color: '#6f42c1' }}>✨ Gemini AI Predictive Insights</h3>
-          <button onClick={fetchAIInsights} style={styles.refreshButton}>
-            {loadingInsights ? '🧠 AI is Analyzing...' : '🔄 Refresh AI Analysis'}
-          </button>
+      {/* ONLY Main Admins see the AI Insights */}
+      {userRole === 'admin' && (
+        <div style={styles.aiInsightsSection}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+            <h3 style={{ margin: 0, color: '#6f42c1' }}>✨ Gemini AI Predictive Insights</h3>
+            <button onClick={fetchAIInsights} style={styles.refreshButton}>
+              {loadingInsights ? '🧠 Analyzing...' : '🔄 Refresh AI Analysis'}
+            </button>
+          </div>
+
+          {loadingInsights ? (
+            <p style={{ color: '#666' }}>Scanning database and generating predictions...</p>
+          ) : aiInsights ? (
+            <>
+              <div style={styles.aiSummary}><strong>📊 System Health:</strong> {aiInsights.summary}</div>
+              <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                <div style={{ flex: 1, minWidth: '300px' }}>
+                  <h4 style={{ color: '#dc3545', margin: '0 0 10px 0' }}>🚨 Critical Alerts</h4>
+                  <ul style={{ paddingLeft: '20px', margin: 0 }}>
+                    {aiInsights.criticalAlerts?.map((alert, i) => <li key={i} style={{ marginBottom: '5px' }}>{alert}</li>)}
+                  </ul>
+                </div>
+                <div style={{ flex: 1, minWidth: '300px' }}>
+                  <h4 style={{ color: '#007bff', margin: '0 0 10px 0' }}>🔮 AI Predictions</h4>
+                  <ul style={{ paddingLeft: '20px', margin: 0 }}>
+                    {aiInsights.predictiveInsights?.map((pred, i) => <li key={i} style={{ marginBottom: '5px' }}>{pred}</li>)}
+                  </ul>
+                </div>
+              </div>
+            </>
+          ) : (
+            <p style={{ color: '#666' }}>Click "Refresh AI Analysis" to generate insights.</p>
+          )}
         </div>
+      )}
 
-        {loadingInsights ? (
-          <p style={{ color: '#666' }}>Scanning database and generating predictions...</p>
-        ) : aiInsights ? (
-          <>
-            <div style={styles.aiSummary}><strong>📊 System Health:</strong> {aiInsights.summary}</div>
-            <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
-              <div style={{ flex: 1, minWidth: '300px' }}>
-                <h4 style={{ color: '#dc3545', margin: '0 0 10px 0' }}>🚨 Critical Alerts</h4>
-                <ul style={{ paddingLeft: '20px', margin: 0 }}>
-                  {aiInsights.criticalAlerts?.map((alert, i) => <li key={i} style={{ marginBottom: '5px' }}>{alert}</li>)}
-                </ul>
-              </div>
-              <div style={{ flex: 1, minWidth: '300px' }}>
-                <h4 style={{ color: '#007bff', margin: '0 0 10px 0' }}>🔮 AI Predictions</h4>
-                <ul style={{ paddingLeft: '20px', margin: 0 }}>
-                  {aiInsights.predictiveInsights?.map((pred, i) => <li key={i} style={{ marginBottom: '5px' }}>{pred}</li>)}
-                </ul>
-              </div>
-            </div>
-          </>
-        ) : (
-          <p style={{ color: '#666' }}>Click "Refresh AI Analysis" to generate insights.</p>
-        )}
-      </div>
-
+      {/* STATS */}
       {stats && (
         <div style={styles.statsGrid}>
           <div style={{ ...styles.statCard, borderTop: '4px solid #007bff' }}>
@@ -235,27 +244,29 @@ function AdminDashboard() {
         </div>
       )}
 
+      {/* FILTER BAR & AUTOMATED CRON BUTTON */}
       <div style={styles.filterBar}>
         <h3 style={{ margin: 0 }}>📋 Issue Queue</h3>
         <div style={styles.filters}>
-          {/* NEW TEST BUTTON */}
-          <button 
-            onClick={async () => {
-              if (window.confirm('Send follow-up emails to all pending issues?')) {
-                try {
-                  const response = await apiClient.post('/admin/trigger-followups');
-                  if (response.data.success) {
-                    alert('✅ Follow-up emails sent! Check backend terminal.');
+          
+          {/* ONLY Main Admins see the Follow-up Trigger */}
+          {userRole === 'admin' && (
+            <button 
+              onClick={async () => {
+                if (window.confirm('Send follow-up emails to all pending issues?')) {
+                  try {
+                    const response = await apiClient.post('/admin/trigger-followups');
+                    if (response.data.success) alert('✅ Follow-up emails sent! Check backend terminal.');
+                  } catch (error) {
+                    alert('Failed: ' + error.response?.data?.error);
                   }
-                } catch (error) {
-                  alert('Failed: ' + error.response?.data?.error);
                 }
-              }
-            }}
-            style={{...styles.refreshButton, backgroundColor: '#dc3545'}}
-          >
-            📧 Send Follow-Ups
-          </button>
+              }}
+              style={{...styles.refreshButton, backgroundColor: '#dc3545'}}
+            >
+              📧 Send Follow-Ups (Test)
+            </button>
+          )}
 
           <select value={filter.status} onChange={(e) => setFilter({ ...filter, status: e.target.value })} style={styles.filterSelect}>
             <option value="">All Statuses</option>
@@ -268,9 +279,10 @@ function AdminDashboard() {
         </div>
       </div>
 
+      {/* ISSUES LIST */}
       <div style={styles.issuesContainer}>
         {issues.length === 0 ? (
-          <div style={styles.noIssues}>No issues found.</div>
+          <div style={styles.noIssues}>No issues found for your department.</div>
         ) : (
           issues.map((issue) => (
             <div key={issue.id} style={styles.issueCard}>
@@ -291,38 +303,20 @@ function AdminDashboard() {
                 
                 {/* 📸 BEFORE AND AFTER PHOTO GALLERY */}
                 <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', marginTop: '15px' }}>
-                  
-                  {/* BEFORE PHOTO (Citizen) */}
                   {issue.image_url && (
                     <div style={{ padding: '10px', backgroundColor: '#fff3cd', borderRadius: '6px', border: '1px solid #ffeeba' }}>
                       <p style={{ margin: '0 0 5px 0', fontSize: '12px', fontWeight: 'bold', color: '#856404' }}>📸 BEFORE (Reported):</p>
-                      <img 
-                        src={issue.image_url} 
-                        alt="Citizen Evidence" 
-                        style={{ maxWidth: '200px', maxHeight: '130px', borderRadius: '4px', border: '1px solid #ddd', cursor: 'pointer', objectFit: 'cover' }}
-                        onClick={() => window.open(issue.image_url, '_blank')}
-                      />
+                      <img src={issue.image_url} alt="Citizen Evidence" style={{ maxWidth: '200px', maxHeight: '130px', borderRadius: '4px', cursor: 'pointer', objectFit: 'cover' }} onClick={() => window.open(issue.image_url, '_blank')} />
                     </div>
                   )}
 
-                  {/* AFTER PHOTO (Admin) */}
                   {issue.resolved_image_url && (
                     <div style={{ padding: '10px', backgroundColor: '#d4edda', borderRadius: '6px', border: '1px solid #c3e6cb' }}>
                       <p style={{ margin: '0 0 5px 0', fontSize: '12px', fontWeight: 'bold', color: '#155724' }}>✅ AFTER (Resolved):</p>
-                      <img 
-                        src={issue.resolved_image_url} 
-                        alt="Resolution Evidence" 
-                        style={{ maxWidth: '200px', maxHeight: '130px', borderRadius: '4px', border: '1px solid #ddd', cursor: 'pointer', objectFit: 'cover' }}
-                        onClick={() => window.open(issue.resolved_image_url, '_blank')}
-                      />
-                      {issue.resolution_notes && (
-                         <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#155724', maxWidth: '200px', wordWrap: 'break-word' }}>
-                           <strong>Notes:</strong> {issue.resolution_notes}
-                         </p>
-                      )}
+                      <img src={issue.resolved_image_url} alt="Resolution Evidence" style={{ maxWidth: '200px', maxHeight: '130px', borderRadius: '4px', cursor: 'pointer', objectFit: 'cover' }} onClick={() => window.open(issue.resolved_image_url, '_blank')} />
+                      {issue.resolution_notes && <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#155724', maxWidth: '200px', wordWrap: 'break-word' }}><strong>Notes:</strong> {issue.resolution_notes}</p>}
                     </div>
                   )}
-
                 </div>
               </div>
 
@@ -336,6 +330,7 @@ function AdminDashboard() {
         )}
       </div>
 
+      {/* RESOLVE MODAL */}
       {selectedIssue && (
         <div style={styles.modalOverlay}>
           <div style={styles.modal}>
@@ -343,24 +338,12 @@ function AdminDashboard() {
             
             <div style={{ marginBottom: '15px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '8px', border: '1px solid #ddd' }}>
               <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>📸 Upload Resolution Proof <span style={{color: 'red'}}>*</span></label>
-              <input 
-                type="file" 
-                accept="image/*"
-                disabled={uploadingAdminImage}
-                onChange={(e) => handleAdminImageUpload(e.target.files[0])}
-                style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: 'white' }}
-              />
+              <input type="file" accept="image/*" disabled={uploadingAdminImage} onChange={(e) => handleAdminImageUpload(e.target.files[0])} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: 'white' }} />
               {uploadingAdminImage && <small style={{ color: '#007bff', display: 'block', marginTop: '5px' }}>Uploading to server...</small>}
               
               <div style={{ marginTop: '10px' }}>
                 <small style={{ color: '#666', display: 'block', marginBottom: '3px' }}>Or paste URL manually:</small>
-                <input 
-                  type="text" 
-                  placeholder="https://i.ibb.co/..." 
-                  value={resolveData.resolved_image_url} 
-                  onChange={(e) => setResolveData({...resolveData, resolved_image_url: e.target.value})} 
-                  style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} 
-                />
+                <input type="text" placeholder="https://i.ibb.co/..." value={resolveData.resolved_image_url} onChange={(e) => setResolveData({...resolveData, resolved_image_url: e.target.value})} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
               </div>
 
               {resolveData.resolved_image_url && (
@@ -372,13 +355,7 @@ function AdminDashboard() {
 
             <div style={{ marginBottom: '20px' }}>
               <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>📝 Resolution Notes</label>
-              <textarea 
-                placeholder="Describe what was done to fix this issue..." 
-                value={resolveData.resolution_notes} 
-                onChange={(e) => setResolveData({...resolveData, resolution_notes: e.target.value})} 
-                style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', fontFamily: 'inherit' }} 
-                rows={3} 
-              />
+              <textarea placeholder="Describe what was done to fix this issue..." value={resolveData.resolution_notes} onChange={(e) => setResolveData({...resolveData, resolution_notes: e.target.value})} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', fontFamily: 'inherit' }} rows={3} />
             </div>
 
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
@@ -410,7 +387,7 @@ const styles = {
   refreshButton: { padding: '6px 12px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' },
   issuesContainer: { display: 'flex', flexDirection: 'column', gap: '15px' },
   noIssues: { textAlign: 'center', padding: '40px', backgroundColor: 'white', borderRadius: '8px', color: '#dc3545', fontWeight: 'bold' },
-  issueCard: { backgroundColor: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' },
+  issueCard: { backgroundColor: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' },
   issueCardHeader: { display: 'flex', justifyContent: 'space-between', marginBottom: '15px', borderBottom: '1px solid #eee', paddingBottom: '10px' },
   categoryTag: { backgroundColor: '#e9ecef', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold', color: '#333' },
   badge: { color: 'white', padding: '2px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold' },

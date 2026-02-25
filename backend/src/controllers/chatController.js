@@ -2,7 +2,7 @@
 function cleanLocation(message) {
   // Extract only the location part
   const match = message.match(
-    /(in|near|at|opposite|beside|behind)\s.+/i
+    /(vadapalani|anna nagar|velachery|t nagar|tambaram|adyar|pallavaram|mylapore|guindy|porur|nanganallur|meenambakkam|chrompet|ambattur|nungambakkam|besant nagar|sholinganallur|perungudi|triplicane|egmore|kodambakkam|kk nagar|adyar|alandur|pammal|pazhavanthangal|st thomas mount|medavakkam|selaiyur|perungalathur|mudichur|gerugambakkam|manapakkam|valasaravakkam|virugambakkam|west mambalam|kilpauk|thiruvanmiyur|mandaveli|royapettah|saidapet|teynampet|alwarpet|gopalapuram|nandanam|choolaimedu|purasaiwalkam|villivakkam|perambur|mkb nagar|madhavaram|ennore|manali|avadi|poonamallee|koyambedu|moggapair|korattur|maduravoyal|iyyapanthangal|ramavaram|thirumazhisai|thiruneermalai|thirusulam|pozhal|red hills|sholavaram|minjur|near|at|opposite|beside|behind)\s.+/i
   );
 
   if (!match) return null;
@@ -16,12 +16,7 @@ function cleanLocation(message) {
 function cleanDescription(message) {
   // Remove common location phrases
   return message
-    .replace(/near\s.+/i, '')
-    .replace(/at\s.+/i, '')
-    .replace(/in\s.+/i, '')
-    .replace(/opposite\s.+/i, '')
-    .replace(/beside\s.+/i, '')
-    .replace(/behind\s.+/i, '')
+    .replace(/(vadapalani|anna nagar|velachery|t nagar|tambaram|adyar|pallavaram|mylapore|guindy|porur|nanganallur|meenambakkam|chrompet|ambattur|nungambakkam|besant nagar|sholinganallur|perungudi|triplicane|egmore|kodambakkam|kk nagar|adyar|alandur|pammal|pazhavanthangal|st thomas mount|medavakkam|selaiyur|perungalathur|mudichur|gerugambakkam|manapakkam|valasaravakkam|virugambakkam|west mambalam|kilpauk|thiruvanmiyur|mandaveli|royapettah|saidapet|teynampet|alwarpet|gopalapuram|nandanam|choolaimedu|purasaiwalkam|villivakkam|perambur|mkb nagar|madhavaram|ennore|manali|avadi|poonamallee|koyambedu|moggapair|korattur|maduravoyal|iyyapanthangal|ramavaram|thirumazhisai|thiruneermalai|thirusulam|pozhal|red hills|sholavaram|minjur|near|at|opposite|beside|behind)\b.*/i, '')
     .replace(/\blow\b|\bmedium\b|\bhigh\b|\bseverity\b/gi, '')
     .trim();
 }
@@ -36,11 +31,11 @@ function extractFromMessage(msg, originalMessage) {
   const extracted = {};
 
   // CATEGORY
-  if (/pothole|crack|tar|highway|pavement|asphalt/.test(msg))
+  if (/road|pothole|crack|tar|highway|pavement|asphalt|damage|damaged/.test(msg))
     extracted.category = 'Road Maintenance';
   else if (/garbage|waste|trash|dustbin|cleaning|litter|dump/.test(msg))
     extracted.category = 'Garbage Collection';
-  else if (/light|lamp|dark|pole|bulb|street.*light/.test(msg))
+  else if (/light|lamp|dark|pole|bulb|street.*light|electric|wire|transformer|short circuit|shock|power/.test(msg))
     extracted.category = 'Streetlight';
   else if (/water|stagnat|pipe|leak|supply|tap|burst/.test(msg))
     extracted.category = 'Water Supply';
@@ -55,7 +50,7 @@ function extractFromMessage(msg, originalMessage) {
   }
 
   // LOCATION (only if location-like words exist)
-  if (/(in|opposite|beside|behind|at\s|near\s)/.test(msg)) {
+  if (/(vadapalani|anna nagar|velachery|t nagar|tambaram|adyar|pallavaram|mylapore|guindy|porur|nanganallur|meenambakkam|chrompet|ambattur|nungambakkam|besant nagar|sholinganallur|perungudi|triplicane|egmore|kodambakkam|kk nagar|adyar|alandur|pammal|pazhavanthangal|st thomas mount|medavakkam|selaiyur|perungalathur|mudichur|gerugambakkam|manapakkam|valasaravakkam|virugambakkam|west mambalam|kilpauk|thiruvanmiyur|mandaveli|royapettah|saidapet|teynampet|alwarpet|gopalapuram|nandanam|choolaimedu|purasaiwalkam|villivakkam|perambur|mkb nagar|madhavaram|ennore|manali|avadi|poonamallee|koyambedu|moggapair|korattur|maduravoyal|iyyapanthangal|ramavaram|thirumazhisai|thiruneermalai|thirusulam|pozhal|red hills|sholavaram|minjur|opposite|beside|behind|at\s|near\s)/.test(msg)) {
   extracted.location = originalMessage;
 }
 
