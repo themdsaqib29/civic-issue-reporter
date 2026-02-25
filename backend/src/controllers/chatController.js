@@ -1,3 +1,9 @@
+const { GoogleGenAI } = require('@google/genai');
+
+let askAiClient = null;
+if (process.env.GEMINI_API_KEY) {
+  askAiClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+}
 // In-memory conversation state (per user session)
 function cleanLocation(message) {
   // Extract only the location part
@@ -108,6 +114,82 @@ class ChatController {
           isJson: false
         });
       }
+
+      // =====================
+// @ASKAI HANDLER
+// =====================
+if (msg.startsWith('@askai')) {
+  const userQuery = message.replace(/@askai\s*/i, '').trim();
+
+  if (!userQuery) {
+    return res.json({
+      success: true,
+      reply: "👋 I'm AskAI! Ask me anything about Chennai civic services.\n\nExamples:\n• @askai how do I report a pothole?\n• @askai which department handles water supply?\n• @askai what are office hours for civic complaints?",
+      isJson: false
+    });
+  }
+
+  if (!askAiClient) {
+    return res.json({
+      success: true,
+      reply: "⚠️ AskAI is not configured. Please contact the administrator.",
+      isJson: false
+    });
+  }
+
+  try {
+    const prompt = `You are AskAI, a helpful assistant built into the Chennai Civic Issue Reporter platform — a student-built web application for reporting and tracking civic issues in Chennai.
+
+YOUR JOB: Answer questions about this platform AND provide real Chennai civic department contact details when asked.
+
+PLATFORM KNOWLEDGE:
+- Citizens report issues via AI chat: Road Maintenance, Garbage Collection, Streetlight, Water Supply, Drainage, Public Health
+- Each issue gets an AI priority score 1-10 based on severity
+- Citizens can upvote issues — more votes = higher priority score
+- Issues are auto-assigned to the correct department
+- Department admins review and resolve issues
+- Citizens get email notifications when issue is resolved
+- Statuses: Pending → Acknowledged → In Progress → Resolved
+- Use @askai in chat to ask questions about the platform
+
+CHENNAI DEPARTMENT CONTACTS (use when asked):
+- Road Maintenance: Greater Chennai Corporation (GCC) — 044-25619206
+- Garbage / Sanitation: GCC Solid Waste Management — 044-25384519
+- Streetlight: GCC Electrical Wing — 044-25383165
+- Water Supply: Chennai Metro Water — 044-45674567 / 1916
+- Drainage / Sewage: Chennai Metro Water — 044-45674567
+- Public Health: GCC Health Wing — 044-25619206
+- General GCC Helpline: 1913
+
+RESPONSE RULES:
+1. Answer exactly what the user asked — no more, no less
+2. Only mention the platform if the user specifically asks about it
+3. Keep responses under 100 words
+4. Be friendly and concise
+5. Never mention Namma Chennai app or any competing platforms
+
+User question: ${userQuery}`;
+
+    const result = await askAiClient.models.generateContent({
+  model: 'gemini-3-flash-preview',
+  contents: prompt
+});
+const aiReply = result.text;
+
+    return res.json({
+      success: true,
+      reply: `🤖 *AskAI:*\n\n${aiReply}`,
+      isJson: false
+    });
+  } catch (error) {
+    console.error('AskAI error:', error);
+    return res.json({
+      success: true,
+      reply: "⚠️ AskAI couldn't process that right now. Try again in a moment.",
+      isJson: false
+    });
+  }
+}
 
       const session = this.getSession(userId);
 

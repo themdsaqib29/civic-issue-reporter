@@ -306,7 +306,7 @@ function ChatIssuePage() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Type your message here..."
+            placeholder="Type your message here... or @askai to ask about civic services"
             style={styles.input}
             disabled={loading}
           />
