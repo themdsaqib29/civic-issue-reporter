@@ -166,21 +166,32 @@ exports.createIssue = async (req, res) => {
     console.log('Issue created successfully:', issue.id);
 
     // === 7. SEND EMAIL AUTOMATICALLY ===
-    let emailResult = null;
-    try {
-      emailResult = await emailService.sendIssueEmail(issue, department);
-      
-      // Mark email as sent in database
-      await pool.query(
-        'UPDATE issues SET email_sent = true WHERE id = $1',
-        [issue.id]
-      );
-      
-      console.log('✅ Email sent for issue:', issue.id);
-    } catch (emailError) {
-      // Don't fail the whole request if email fails
-      console.error('⚠️ Email failed (issue still saved):', emailError.message);
-    }
+    // === 7. SEND EMAIL AUTOMATICALLY ===
+let emailResult = null;
+
+try {
+  // 🔥 Fetch citizen email for CC
+  const userResult = await pool.query(
+    'SELECT email FROM users WHERE id = $1',
+    [issue.user_id || issue.userId]
+  );
+
+  if (userResult.rows.length > 0) {
+    issue.citizen_email = userResult.rows[0].email;
+  }
+
+  emailResult = await emailService.sendIssueEmail(issue, department);
+
+  await pool.query(
+    'UPDATE issues SET email_sent = true WHERE id = $1',
+    [issue.id]
+  );
+
+  console.log('✅ Email sent for issue:', issue.id);
+
+} catch (emailError) {
+  console.error('⚠️ Email failed (issue still saved):', emailError.message);
+}
 
     console.log('=== CREATE ISSUE END ===');
 
@@ -268,6 +279,17 @@ exports.sendEmail = async (req, res) => {
       department = deptResult.rows[0];
     }
 
+    // 🔥 Attach citizen email BEFORE sending
+    const userResult = await pool.query(
+      'SELECT email FROM users WHERE id = $1',
+      [issue.user_id]
+    );
+
+    if (userResult.rows.length > 0) {
+      issue.citizen_email = userResult.rows[0].email;
+    }
+
+    // Send email
     const emailResult = await emailService.sendIssueEmail(issue, department);
 
     // Update email_sent flag

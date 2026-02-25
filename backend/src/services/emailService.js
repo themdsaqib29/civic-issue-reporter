@@ -65,22 +65,25 @@ Do NOT include any markdown, code blocks, or extra text. ONLY valid JSON.
       console.log('🤖 Generating AI email...');
       const result = await this.model.generateContent(prompt);
       const response = result.response.text();
-      
-      // Clean response (remove markdown if present)
-      const cleanedResponse = response.replace(/```json/g, '').replace(/```/g, '').trim();
+
+      const cleanedResponse = response
+        .replace(/```json/g, '')
+        .replace(/```/g, '')
+        .trim();
+
       const emailContent = JSON.parse(cleanedResponse);
-      
+
       console.log('✅ AI email generated successfully');
       return emailContent;
-      
+
     } catch (error) {
       console.error('❌ AI generation failed, falling back to template:', error.message);
-      return this.generateTemplateEmail(issue, department); // Fallback
+      return this.generateTemplateEmail(issue, department);
     }
   }
 
   /**
-   * TEMPLATE-BASED EMAIL (Fallback if AI fails or no API key)
+   * TEMPLATE-BASED EMAIL (Fallback)
    */
   generateTemplateEmail(issue, department) {
     const priorityText = issue.priority_score >= 7 ? 'URGENT' : 
@@ -110,41 +113,49 @@ Chennai Civic Issue Reporter
   }
 
   /**
-   * SEND EMAIL
+   * SEND EMAIL (Improved CC Handling)
    */
   async sendIssueEmail(issue, department, useAI = true) {
     try {
       let emailContent;
-      
-      // Check if AI is requested AND the API key exists
+
       if (useAI && this.model) {
         emailContent = await this.generateAIEmail(issue, department);
       } else {
         emailContent = this.generateTemplateEmail(issue, department);
       }
-      
+
       const toEmail = department?.email || process.env.EMAIL_USER;
-      
+
+      // ✅ Clean CC handling (Citizen copied if available)
+      const ccEmail = issue.citizen_email || undefined;
+
       const mailOptions = {
         from: process.env.EMAIL_FROM,
         to: toEmail,
-        cc: process.env.EMAIL_USER,
+        cc: ccEmail,
         subject: emailContent.subject,
         text: emailContent.body,
       };
-      
+
       const info = await this.transporter.sendMail(mailOptions);
-      console.log('✅ Email sent:', info.messageId);
-      
-      return { success: true, messageId: info.messageId, to: toEmail };
-      
+
+      console.log(`✅ Email sent to ${toEmail}${ccEmail ? ` (CC: ${ccEmail})` : ''}`);
+
+      return {
+        success: true,
+        messageId: info.messageId,
+        to: toEmail,
+        cc: ccEmail || null
+      };
+
     } catch (error) {
       console.error('❌ Email send error:', error);
       throw new Error(`Email sending failed: ${error.message}`);
     }
   }
 
-  // Preview Email (for the frontend button)
+  
   async previewEmail(issue, department) {
     if (this.model) {
       return await this.generateAIEmail(issue, department);
