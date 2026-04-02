@@ -127,10 +127,10 @@ function ChatIssuePage() {
         description: issueData.description,
         category: issueData.category,
         location_address: issueData.location,
-        severity: issueData.severity || 'normal',
-        image_url: imageUrl || null,
-        location_lat: 13.0827,
-        location_lng: 80.2707
+        severity: issueData.severity,
+        image_url: imageUrl || null
+        //location_lat: 13.0827,
+        //location_lng: 80.2707
       };
     
       const response = await apiClient.post('/issues', payload);

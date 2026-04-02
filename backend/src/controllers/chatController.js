@@ -4,26 +4,65 @@ let askAiClient = null;
 if (process.env.GEMINI_API_KEY) {
   askAiClient = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 }
+
+// ============================================
+// LOCATION MANAGEMENT (Centralized & Efficient)
+// ============================================
+const LOCATION_KEYWORDS = [
+  'vadapalani', 'anna nagar', 'velachery', 't nagar', 'tambaram', 'adyar',
+  'pallavaram', 'mylapore', 'guindy', 'porur', 'nanganallur', 'meenambakkam',
+  'chrompet', 'ambattur', 'nungambakkam', 'besant nagar', 'sholinganallur',
+  'perungudi', 'triplicane', 'egmore', 'kodambakkam', 'kk nagar', 'alandur',
+  'pammal', 'pazhavanthangal', 'st thomas mount', 'medavakkam', 'selaiyur',
+  'perungalathur', 'mudichur', 'gerugambakkam', 'manapakkam', 'valasaravakkam',
+  'virugambakkam', 'west mambalam', 'kilpauk', 'thiruvanmiyur', 'mandaveli',
+  'royapettah', 'saidapet', 'teynampet', 'alwarpet', 'gopalapuram', 'nandanam',
+  'choolaimedu', 'purasaiwalkam', 'villivakkam', 'perambur', 'mkb nagar',
+  'madhavaram', 'ennore', 'manali', 'avadi', 'poonamallee', 'koyambedu',
+  'moggapair', 'korattur', 'maduravoyal', 'iyyapanthangal', 'ramavaram',
+  'thirumazhisai', 'thiruneermalai', 'thirusulam', 'pozhal', 'red hills',
+  'sholavaram', 'minjur'
+];
+
+const LOCATION_PATTERN = new RegExp(`\\b(${LOCATION_KEYWORDS.join('|')})\\b`, 'gi');
+const LOCATION_WITH_CONTEXT = new RegExp(
+  `(?:in|at|near|opposite|beside|behind)\\s+([^!?]*?(?:${LOCATION_KEYWORDS.join('|')})[^!?]*)(?:\\s*[!?.]|$)`,
+  'i'
+);
+
 // In-memory conversation state (per user session)
-function cleanLocation(message) {
-  // Extract only the location part
-  const match = message.match(
-    /(vadapalani|anna nagar|velachery|t nagar|tambaram|adyar|pallavaram|mylapore|guindy|porur|nanganallur|meenambakkam|chrompet|ambattur|nungambakkam|besant nagar|sholinganallur|perungudi|triplicane|egmore|kodambakkam|kk nagar|adyar|alandur|pammal|pazhavanthangal|st thomas mount|medavakkam|selaiyur|perungalathur|mudichur|gerugambakkam|manapakkam|valasaravakkam|virugambakkam|west mambalam|kilpauk|thiruvanmiyur|mandaveli|royapettah|saidapet|teynampet|alwarpet|gopalapuram|nandanam|choolaimedu|purasaiwalkam|villivakkam|perambur|mkb nagar|madhavaram|ennore|manali|avadi|poonamallee|koyambedu|moggapair|korattur|maduravoyal|iyyapanthangal|ramavaram|thirumazhisai|thiruneermalai|thirusulam|pozhal|red hills|sholavaram|minjur|near|at|opposite|beside|behind)\b[^!?]*$/i
+function extractLocation(message) {
+  // First, try to find "trigger + context + location"
+  // E.g., "in 9th street, r.k. nagar, kilpauk" → captures full address
+  const contextMatch = message.match(LOCATION_WITH_CONTEXT);
+  if (contextMatch) {
+    return contextMatch[1]
+      .trim()
+      .replace(/\b(low|medium|high|severity)\b/gi, '')
+      .trim();
+  }
+
+  // Fallback: Find any location keyword and capture from there
+  const locationMatch = message.match(
+    new RegExp(`\\b([a-z\\s,]+)?(?:${LOCATION_KEYWORDS.join('|')})(?:\\s+[^!?,]*)?`, 'i')
   );
+  
+  if (locationMatch) {
+    return locationMatch[0]
+      .trim()
+      .replace(/\b(low|medium|high|severity)\b/gi, '')
+      .trim();
+  }
 
-  if (!match) return null;
-
-  return match[0]
-    .replace(/\blow\b|\bmedium\b|\bhigh\b|\bseverity\b/gi, '')
-    .trim();
+  return null;
 }
 
 
 function cleanDescription(message) {
-  // Remove common location phrases
+  // Remove location trigger phrases and everything after them
   return message
-    .replace(/(vadapalani|anna nagar|velachery|t nagar|tambaram|adyar|pallavaram|mylapore|guindy|porur|nanganallur|meenambakkam|chrompet|ambattur|nungambakkam|besant nagar|sholinganallur|perungudi|triplicane|egmore|kodambakkam|kk nagar|adyar|alandur|pammal|pazhavanthangal|st thomas mount|medavakkam|selaiyur|perungalathur|mudichur|gerugambakkam|manapakkam|valasaravakkam|virugambakkam|west mambalam|kilpauk|thiruvanmiyur|mandaveli|royapettah|saidapet|teynampet|alwarpet|gopalapuram|nandanam|choolaimedu|purasaiwalkam|villivakkam|perambur|mkb nagar|madhavaram|ennore|manali|avadi|poonamallee|koyambedu|moggapair|korattur|maduravoyal|iyyapanthangal|ramavaram|thirumazhisai|thiruneermalai|thirusulam|pozhal|red hills|sholavaram|minjur|near|at|opposite|beside|behind)\b.*/i, '')
-    .replace(/\blow\b|\bmedium\b|\bhigh\b|\bseverity\b/gi, '')
+    .replace(/(in|at|near|opposite|beside|behind)\s+[^!?]+/gi, '')  // Remove location phrases
+    .replace(/\b(low|medium|high|severity)\b/gi, '')  // Remove priority words
     .trim();
 }
 
@@ -55,10 +94,10 @@ function extractFromMessage(msg, originalMessage) {
     extracted.severity = msg.match(/low|medium|high/)[0];
   }
 
-  // LOCATION (only if location-like words exist)
-  if (/(vadapalani|anna nagar|velachery|t nagar|tambaram|adyar|pallavaram|mylapore|guindy|porur|nanganallur|meenambakkam|chrompet|ambattur|nungambakkam|besant nagar|sholinganallur|perungudi|triplicane|egmore|kodambakkam|kk nagar|adyar|alandur|pammal|pazhavanthangal|st thomas mount|medavakkam|selaiyur|perungalathur|mudichur|gerugambakkam|manapakkam|valasaravakkam|virugambakkam|west mambalam|kilpauk|thiruvanmiyur|mandaveli|royapettah|saidapet|teynampet|alwarpet|gopalapuram|nandanam|choolaimedu|purasaiwalkam|villivakkam|perambur|mkb nagar|madhavaram|ennore|manali|avadi|poonamallee|koyambedu|moggapair|korattur|maduravoyal|iyyapanthangal|ramavaram|thirumazhisai|thiruneermalai|thirusulam|pozhal|red hills|sholavaram|minjur|opposite|beside|behind|at\s|near\s)/.test(msg)) {
-  extracted.location = originalMessage;
-}
+  // LOCATION - Check if location keywords exist
+  if (LOCATION_PATTERN.test(msg)) {
+    extracted.location = true;  // Just mark it exists, extract later
+  }
 
   return extracted;
 }
@@ -211,7 +250,7 @@ const aiReply = result.text;
 
 
       if (extracted.location && !session.location) {
-  const loc = cleanLocation(message);
+  const loc = extractLocation(message);
   if (loc) {
     session.location = loc;
   }
