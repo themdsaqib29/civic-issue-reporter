@@ -1,21 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '../components/Toast';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css'; // Required for the map to render correctly
 import apiClient from '../services/apiClient';
+import './AnalyticsDashboard.css';
 
 function AnalyticsDashboard() {
   const [data, setData] = useState({ categoryData: [], statusData: [], geoData: [] });
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { showError } = useToast();
 
   // Colors for the Pie Chart
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
-
-  useEffect(() => {
-    fetchAnalytics();
-  }, []);
 
   const fetchAnalytics = async () => {
     try {
@@ -25,11 +24,16 @@ function AnalyticsDashboard() {
       }
     } catch (error) {
       console.error('Analytics fetch error:', error);
-      alert('Failed to load analytics. Admin access required.');
+      showError('Failed to load analytics. Admin access required.');
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchAnalytics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Helper to color the map markers based on priority
   const getMarkerColor = (score) => {
@@ -38,29 +42,29 @@ function AnalyticsDashboard() {
     return '#28a745'; // Green (Low)
   };
 
-  if (loading) return <div style={{ textAlign: 'center', marginTop: '100px', fontSize: '20px' }}>Loading Big Data Analytics...</div>;
+  if (loading) return <div className="analytics-loading">↻ Loading Big Data Analytics...</div>;
 
   return (
-    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto', fontFamily: 'system-ui, sans-serif', backgroundColor: '#f4f6f9', minHeight: '100vh' }}>
+    <div className="analytics-container">
       
       {/* HEADER */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', padding: '20px', borderRadius: '8px', marginBottom: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+      <div className="analytics-header glass-card">
         <div>
-          <h1 style={{ margin: 0, color: '#333' }}>📈 Advanced Analytics & Heatmap</h1>
-          <p style={{ margin: 0, color: '#666' }}>City-wide infrastructure data visualization</p>
+          <h1 className="analytics-title">◈ Advanced Analytics & Heatmap</h1>
+          <p className="analytics-subtitle">City-wide infrastructure data visualization</p>
         </div>
-        <button onClick={() => navigate('/admin')} style={{ padding: '8px 16px', backgroundColor: '#343a40', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
+        <button onClick={() => navigate('/admin')} className="glass-button glass-button-secondary">
           ← Back to Command Center
         </button>
       </div>
 
       {/* CHARTS ROW */}
-      <div style={{ display: 'flex', gap: '20px', marginBottom: '20px', flexWrap: 'wrap' }}>
+      <div className="analytics-charts-grid">
         
         {/* BAR CHART: Trending Categories */}
-        <div style={{ flex: '2', backgroundColor: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', minWidth: '400px' }}>
-          <h3 style={{ marginTop: 0, color: '#333' }}>📊 Trending Issues by Category</h3>
-          <div style={{ height: '300px' }}>
+        <div className="analytics-chart-container">
+          <h3>◈ Trending Issues by Category</h3>
+          <div className="analytics-chart-height">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.categoryData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -75,9 +79,9 @@ function AnalyticsDashboard() {
         </div>
 
         {/* PIE CHART: Status Breakdown */}
-        <div style={{ flex: '1', backgroundColor: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', minWidth: '300px' }}>
-          <h3 style={{ marginTop: 0, color: '#333' }}>🔄 Resolution Status</h3>
-          <div style={{ height: '300px' }}>
+        <div className="analytics-chart-container analytics-chart-small">
+          <h3>◆ Resolution Status</h3>
+          <div className="analytics-chart-height">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={data.statusData} cx="50%" cy="50%" outerRadius={100} fill="#8884d8" dataKey="count" label={({name, percent}) => `${name} ${(percent * 100).toFixed(0)}%`}>
@@ -94,14 +98,14 @@ function AnalyticsDashboard() {
       </div>
 
       {/* LIVE MAP / HEATMAP SECTION */}
-      <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-        <h3 style={{ marginTop: 0, color: '#333' }}>🗺️ Live Geographic Incident Map</h3>
-        <p style={{ color: '#666', fontSize: '14px', marginBottom: '15px' }}>
-          Visualizing {data.geoData.length} coordinate points. <span style={{color: '#dc3545', fontWeight: 'bold'}}>Red</span> = Critical, <span style={{color: '#ffc107', fontWeight: 'bold'}}>Yellow</span> = Medium, <span style={{color: '#28a745', fontWeight: 'bold'}}>Green</span> = Low.
+      <div className="analytics-map-section glass-card">
+        <h3>◈ Live Geographic Incident Map</h3>
+        <p className="analytics-map-legend">
+          Visualizing {data.geoData.length} coordinate points. <span className="legend-critical">Red</span> = Critical, <span className="legend-medium">Yellow</span> = Medium, <span className="legend-low">Green</span> = Low.
         </p>
         
         {/* Leaflet Map Container */}
-        <div style={{ height: '500px', width: '100%', borderRadius: '8px', overflow: 'hidden', border: '1px solid #ddd' }}>
+        <div className="analytics-map-container">
           <MapContainer center={[13.0827, 80.2707]} zoom={12} style={{ height: '100%', width: '100%' }}>
             <TileLayer
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

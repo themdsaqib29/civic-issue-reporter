@@ -8,7 +8,7 @@ if (process.env.GEMINI_API_KEY) {
 function cleanLocation(message) {
   // Extract only the location part
   const match = message.match(
-    /(vadapalani|anna nagar|velachery|t nagar|tambaram|adyar|pallavaram|mylapore|guindy|porur|nanganallur|meenambakkam|chrompet|ambattur|nungambakkam|besant nagar|sholinganallur|perungudi|triplicane|egmore|kodambakkam|kk nagar|adyar|alandur|pammal|pazhavanthangal|st thomas mount|medavakkam|selaiyur|perungalathur|mudichur|gerugambakkam|manapakkam|valasaravakkam|virugambakkam|west mambalam|kilpauk|thiruvanmiyur|mandaveli|royapettah|saidapet|teynampet|alwarpet|gopalapuram|nandanam|choolaimedu|purasaiwalkam|villivakkam|perambur|mkb nagar|madhavaram|ennore|manali|avadi|poonamallee|koyambedu|moggapair|korattur|maduravoyal|iyyapanthangal|ramavaram|thirumazhisai|thiruneermalai|thirusulam|pozhal|red hills|sholavaram|minjur|near|at|opposite|beside|behind)\s.+/i
+    /(vadapalani|anna nagar|velachery|t nagar|tambaram|adyar|pallavaram|mylapore|guindy|porur|nanganallur|meenambakkam|chrompet|ambattur|nungambakkam|besant nagar|sholinganallur|perungudi|triplicane|egmore|kodambakkam|kk nagar|adyar|alandur|pammal|pazhavanthangal|st thomas mount|medavakkam|selaiyur|perungalathur|mudichur|gerugambakkam|manapakkam|valasaravakkam|virugambakkam|west mambalam|kilpauk|thiruvanmiyur|mandaveli|royapettah|saidapet|teynampet|alwarpet|gopalapuram|nandanam|choolaimedu|purasaiwalkam|villivakkam|perambur|mkb nagar|madhavaram|ennore|manali|avadi|poonamallee|koyambedu|moggapair|korattur|maduravoyal|iyyapanthangal|ramavaram|thirumazhisai|thiruneermalai|thirusulam|pozhal|red hills|sholavaram|minjur|near|at|opposite|beside|behind)\b[^!?]*$/i
   );
 
   if (!match) return null;

@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '../components/Toast';
 import apiClient from '../services/apiClient';
+import './ChatIssuePage.css';
 
 function ChatIssuePage() {
   const [messages, setMessages] = useState([
@@ -17,6 +19,7 @@ function ChatIssuePage() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
+  const { showSuccess, showError, showWarning } = useToast();
 
   // SILENT AUTO-RESET ON PAGE LOAD
   useEffect(() => {
@@ -77,7 +80,7 @@ function ChatIssuePage() {
     if (!file) return;
     
     if (file.size > 5 * 1024 * 1024) {
-      alert('Image must be less than 5MB');
+      showWarning('Image must be less than 5MB');
       return;
     }
     
@@ -90,7 +93,7 @@ function ChatIssuePage() {
       const apiKey = process.env.REACT_APP_IMGBB_API_KEY;
       
       if (!apiKey) {
-          alert('Error: ImgBB API key is missing from environment variables.');
+          showError('Error: ImgBB API key is missing from environment variables.');
           return;
       }
 
@@ -103,13 +106,13 @@ function ChatIssuePage() {
       
       if (data.success) {
         setImageUrl(data.data.url);
-        alert('✅ Image attached successfully!');
+        showSuccess('Image attached successfully!');
       } else {
-        alert('❌ Upload failed. Please try again.');
+        showError('Upload failed. Please try again.');
       }
     } catch (error) {
       console.error('Upload error:', error);
-      alert('Upload failed: ' + error.message);
+      showError('Upload failed: ' + error.message);
     } finally {
       setUploadingImage(false);
     }
@@ -133,227 +136,230 @@ function ChatIssuePage() {
       const response = await apiClient.post('/issues', payload);
     
       if (response.data.success) {
-        alert(`✅ Issue submitted successfully! Priority: ${response.data.priorityLevel}`);
+        showSuccess(`Issue submitted successfully! Priority: ${response.data.priorityLevel}`);
         navigate('/');
       } else {
-        alert('Failed to submit issue: ' + (response.data.error || 'Unknown error'));
+        showError('Failed to submit issue: ' + (response.data.error || 'Unknown error'));
       }
     } catch (error) {
       const errorMsg = error.response?.data?.error || error.message || 'Failed to submit issue';
-      alert('Error: ' + errorMsg);
+      showError('Error: ' + errorMsg);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h2 style={{ margin: 0 }}>Report an Issue</h2>
-        <button onClick={() => navigate('/')} style={styles.backButton}>
+    <div className="chat-page-wrapper">
+      {/* Header */}
+      <header className="chat-header glass-card">
+        <div className="chat-header-content">
+          <h2 className="chat-title">🚨 Report a Civic Issue</h2>
+          <p className="chat-subtitle">Describe your concern and we'll help you get it resolved</p>
+        </div>
+        <button onClick={() => navigate('/')} className="glass-button ghost">
           ← Back to Home
         </button>
-      </div>
+      </header>
 
-      <div style={styles.chatContainer}>
-        {messages.map((msg, idx) => (
-          <div
-            key={idx}
-            style={{
-              ...styles.message,
-              ...(msg.role === 'user' ? styles.userMessage : styles.botMessage)
-            }}
-          >
-            {msg.content}
-          </div>
-        ))}
-        {loading && <div style={styles.typing}>Bot is typing...</div>}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {issueData ? (
-        <div style={styles.issuePreview}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-            <h3 style={{ margin: 0 }}>📋 Issue Summary</h3>
-            {!isEditing && (
-              <button onClick={() => setIsEditing(true)} style={styles.editButton}>
-                ✏️ Edit Details
-              </button>
+      <div className="chat-page-container">
+        {/* Chat Area */}
+        <div className="chat-area">
+          <div className="messages-container">
+            {messages.map((msg, idx) => (
+              <div
+                key={idx}
+                className={`chat-message ${msg.role === 'user' ? 'user-message' : 'bot-message'} stagger-item`}
+              >
+                <div className="message-bubble glass-card">
+                  {msg.content}
+                </div>
+              </div>
+            ))}
+            {loading && (
+              <div className="chat-message bot-message">
+                <div className="message-bubble glass-card typing-indicator">
+                  <span></span><span></span><span></span>
+                </div>
+              </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
+        </div>
 
-          {/* INLINE EDITING FORM */}
-          {isEditing ? (
-            <div style={styles.editForm}>
-              <div style={styles.inputGroup}>
-                <label style={styles.label}>Category:</label>
-                <select 
-                  value={issueData.category} 
-                  onChange={(e) => setIssueData({...issueData, category: e.target.value})}
-                  style={styles.editInput}
-                >
-                  <option value="Road Maintenance">Road Maintenance</option>
-                  <option value="Garbage Collection">Garbage Collection</option>
-                  <option value="Streetlight">Streetlight</option>
-                  <option value="Water Supply">Water Supply</option>
-                  <option value="Drainage">Drainage</option>
-                  <option value="Public Health">Public Health</option>
-                </select>
+        {/* Issue Preview / Input Area */}
+        <div className="chat-bottom">
+          {issueData ? (
+            <div className="issue-preview glass-card animate-slide-up">
+              {/* Summary Header */}
+              <div className="issue-header">
+                <h3 className="issue-title">📋 Issue Summary</h3>
+                {!isEditing && (
+                  <button onClick={() => setIsEditing(true)} className="glass-button">
+                    ✏️ Edit
+                  </button>
+                )}
               </div>
 
-              <div style={styles.inputGroup}>
-                <label style={styles.label}>Description:</label>
-                <textarea 
-                  value={issueData.description} 
-                  onChange={(e) => setIssueData({...issueData, description: e.target.value})}
-                  style={{ ...styles.editInput, minHeight: '60px' }}
+              {/* Editing Form */}
+              {isEditing ? (
+                <div className="issue-edit-form">
+                  <div className="form-group">
+                    <label className="form-label">Category</label>
+                    <select 
+                      value={issueData.category} 
+                      onChange={(e) => setIssueData({...issueData, category: e.target.value})}
+                      className="glass-input"
+                    >
+                      <option value="Road Maintenance">Road Maintenance</option>
+                      <option value="Garbage Collection">Garbage Collection</option>
+                      <option value="Streetlight">Streetlight</option>
+                      <option value="Water Supply">Water Supply</option>
+                      <option value="Drainage">Drainage</option>
+                      <option value="Public Health">Public Health</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Description</label>
+                    <textarea 
+                      value={issueData.description} 
+                      onChange={(e) => setIssueData({...issueData, description: e.target.value})}
+                      className="glass-input"
+                      style={{ minHeight: '80px', resize: 'vertical' }}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Location</label>
+                    <input 
+                      type="text" 
+                      value={issueData.location} 
+                      onChange={(e) => setIssueData({...issueData, location: e.target.value})}
+                      className="glass-input"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label className="form-label">Severity</label>
+                    <select 
+                      value={issueData.severity} 
+                      onChange={(e) => setIssueData({...issueData, severity: e.target.value})}
+                      className="glass-input"
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                    </select>
+                  </div>
+
+                  <button onClick={() => setIsEditing(false)} className="glass-button primary">
+                    💾 Save Changes
+                  </button>
+                </div>
+              ) : (
+                <div className="issue-summary">
+                  <div className="summary-item">
+                    <span className="summary-label">Category:</span>
+                    <span className="summary-value">{issueData.category}</span>
+                  </div>
+                  <div className="summary-item">
+                    <span className="summary-label">Description:</span>
+                    <span className="summary-value">{issueData.description}</span>
+                  </div>
+                  <div className="summary-item">
+                    <span className="summary-label">Location:</span>
+                    <span className="summary-value">{issueData.location}</span>
+                  </div>
+                  <div className="summary-item">
+                    <span className="summary-label">Severity:</span>
+                    <span className="summary-badge" data-severity={issueData.severity}>
+                      {issueData.severity}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Image Upload */}
+              <div className="image-upload-section">
+                <label className="upload-label">◆ Attach Photo Evidence (Optional)</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files[0];
+                    if (file) handleImageUpload(file);
+                  }}
+                  disabled={uploadingImage}
+                  className="file-input"
                 />
+                
+                {uploadingImage && (
+                  <div className="upload-status">
+                    <span className="animate-spin">↻</span> Uploading...
+                  </div>
+                )}
+                
+                {imageUrl && (
+                  <div className="image-preview-container">
+                    <img src={imageUrl} alt="Issue Preview" className="image-preview" />
+                    <button
+                      onClick={() => setImageUrl('')}
+                      className="glass-button danger"
+                    >
+                      ✗ Remove
+                    </button>
+                  </div>
+                )}
               </div>
 
-              <div style={styles.inputGroup}>
-                <label style={styles.label}>Location:</label>
-                <input 
-                  type="text" 
-                  value={issueData.location} 
-                  onChange={(e) => setIssueData({...issueData, location: e.target.value})}
-                  style={styles.editInput}
-                />
-              </div>
-
-              <div style={styles.inputGroup}>
-                <label style={styles.label}>Severity:</label>
-                <select 
-                  value={issueData.severity} 
-                  onChange={(e) => setIssueData({...issueData, severity: e.target.value})}
-                  style={styles.editInput}
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                </select>
-              </div>
-
-              <button onClick={() => setIsEditing(false)} style={styles.saveEditButton}>
-                💾 Save Changes
-              </button>
-            </div>
-          ) : (
-            <div style={styles.summaryDisplay}>
-              <p style={styles.summaryText}><strong>Category:</strong> {issueData.category}</p>
-              <p style={styles.summaryText}><strong>Description:</strong> {issueData.description}</p>
-              <p style={styles.summaryText}><strong>Location:</strong> {issueData.location}</p>
-              <p style={styles.summaryText}><strong>Severity:</strong> <span style={{ textTransform: 'capitalize' }}>{issueData.severity}</span></p>
-            </div>
-          )}
-
-          {/* IMAGE UPLOAD */}
-          <div style={styles.uploadSection}>
-            <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold', color: '#333' }}>
-              📸 Attach Photo Evidence (Optional)
-            </label>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files[0];
-                if (file) handleImageUpload(file);
-              }}
-              disabled={uploadingImage}
-              style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: 'white' }}
-            />
-            
-            {uploadingImage && <div style={{ color: '#007bff', marginTop: '10px', fontWeight: 'bold' }}>Uploading to server...</div>}
-            
-            {imageUrl && (
-              <div style={{ marginTop: '15px', position: 'relative', display: 'inline-block' }}>
-                <img src={imageUrl} alt="Issue Preview" style={{ maxWidth: '100%', maxHeight: '200px', borderRadius: '8px', border: '2px solid #28a745' }} />
+              {/* Action Buttons */}
+              <div className="issue-actions">
                 <button
-                  onClick={() => setImageUrl('')}
-                  style={styles.removeImageButton}
+                  onClick={handleSubmitIssue}
+                  disabled={loading || uploadingImage || isEditing}
+                  className="glass-button primary action-btn"
                 >
-                  ❌ Remove Photo
+                  {loading ? '↻ Submitting...' : '✓ Submit Issue'}
+                </button>
+                
+                <button
+                  onClick={() => { 
+                    setIssueData(null); 
+                    setImageUrl(''); 
+                    setMessages([{ role: 'bot', content: 'Hi! I\'m here to help you report civic issues. What problem would you like to report?' }]);
+                    apiClient.post('/chat/message', { message: 'reset' }).catch(() => {});
+                  }}
+                  className="glass-button"
+                >
+                  🗑️ Cancel
                 </button>
               </div>
-            )}
-          </div>
-
-          <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-            <button
-              onClick={handleSubmitIssue}
-              disabled={loading || uploadingImage || isEditing}
-              style={styles.submitButton}
-            >
-              {loading ? 'Submitting...' : '🚀 Submit Final Issue'}
-            </button>
-            
-            <button
-              onClick={() => { 
-                setIssueData(null); 
-                setImageUrl(''); 
-                setMessages([{ role: 'bot', content: 'Hi! I\'m here to help you report civic issues. What problem would you like to report?' }]);
-                apiClient.post('/chat/message', { message: 'reset' }).catch(() => {});
-              }}
-              style={styles.resetButton}
-            >
-              🗑️ Cancel & Restart
-            </button>
-          </div>
+            </div>
+          ) : (
+            <div className="chat-input-container glass-card">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                placeholder="Describe your civic concern..."
+                className="chat-input glass-input"
+                disabled={loading}
+              />
+              <button
+                onClick={handleSend}
+                disabled={loading || !input.trim()}
+                className="chat-send-button glass-button primary"
+              >
+                {loading ? '...' : '→'}
+              </button>
+            </div>
+          )}
         </div>
-      ) : (
-        <div style={styles.inputContainer}>
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-            placeholder="Type your message here... or @askai to ask about civic services"
-            style={styles.input}
-            disabled={loading}
-          />
-          <button
-            onClick={handleSend}
-            disabled={loading || !input.trim()}
-            style={styles.sendButton}
-          >
-            Send
-          </button>
-        </div>
-      )}
+      </div>
     </div>
   );
 }
-
-const styles = {
-  container: { display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#f4f6f9', fontFamily: 'system-ui, sans-serif' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', backgroundColor: 'white', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', zIndex: 10 },
-  backButton: { padding: '8px 16px', backgroundColor: '#343a40', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: '500' },
-  chatContainer: { flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' },
-  message: { maxWidth: '75%', padding: '12px 16px', borderRadius: '16px', fontSize: '15px', lineHeight: '1.4', wordWrap: 'break-word', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' },
-  userMessage: { alignSelf: 'flex-end', backgroundColor: '#007bff', color: 'white', borderBottomRightRadius: '4px' },
-  botMessage: { alignSelf: 'flex-start', backgroundColor: 'white', border: '1px solid #e1e5f2', color: '#333', borderBottomLeftRadius: '4px' },
-  typing: { alignSelf: 'flex-start', color: '#666', fontStyle: 'italic', padding: '8px', fontSize: '13px' },
-  inputContainer: { display: 'flex', gap: '10px', padding: '20px', backgroundColor: 'white', borderTop: '1px solid #eee' },
-  input: { flex: 1, padding: '14px', fontSize: '15px', border: '1px solid #ccc', borderRadius: '8px', outline: 'none' },
-  sendButton: { padding: '14px 28px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '15px', fontWeight: 'bold' },
-  
-  // Summary & Editing Styles
-  issuePreview: { padding: '25px', backgroundColor: 'white', borderTop: '1px solid #eee', boxShadow: '0 -4px 10px rgba(0,0,0,0.05)', zIndex: 10 },
-  summaryDisplay: { backgroundColor: '#f8f9fe', padding: '15px', borderRadius: '8px', border: '1px solid #e1e5f2', marginBottom: '20px' },
-  summaryText: { margin: '8px 0', fontSize: '15px', color: '#444' },
-  editForm: { backgroundColor: '#fff3cd', padding: '15px', borderRadius: '8px', border: '1px solid #ffeeba', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '10px' },
-  inputGroup: { display: 'flex', flexDirection: 'column', gap: '5px' },
-  label: { fontSize: '13px', fontWeight: 'bold', color: '#666' },
-  editInput: { padding: '10px', borderRadius: '4px', border: '1px solid #ccc', fontSize: '14px', fontFamily: 'inherit' },
-  editButton: { padding: '6px 12px', backgroundColor: '#ffc107', color: '#333', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' },
-  saveEditButton: { padding: '10px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', marginTop: '5px' },
-  
-  // Upload Styles
-  uploadSection: { padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '8px', border: '1px dashed #ccc' },
-  removeImageButton: { display: 'block', marginTop: '10px', padding: '6px 12px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '13px', fontWeight: 'bold' },
-  
-  // Action Buttons
-  submitButton: { flex: 2, padding: '14px', backgroundColor: '#28a745', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold' },
-  resetButton: { flex: 1, padding: '14px', backgroundColor: '#dc3545', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '15px', fontWeight: 'bold' },
-};
 
 export default ChatIssuePage;

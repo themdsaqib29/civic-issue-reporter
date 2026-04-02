@@ -3,7 +3,10 @@ const router = express.Router();
 const issueController = require('../controllers/issueController');
 const { verifyToken } = require('../middleware/auth');
 
-// All issue routes require authentication
+// Public route - for unauthenticated users (analytics on login page)
+router.get('/public/analytics', issueController.getPublicAnalytics);
+
+// All other issue routes require authentication
 router.get('/my-issues', verifyToken, issueController.getMyIssues);
 router.post('/', verifyToken, issueController.createIssue);
 router.get('/', verifyToken, issueController.getAllIssues);

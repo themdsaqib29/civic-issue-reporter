@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '../components/Toast';
 import apiClient from '../services/apiClient';
+import './AdminDashboard.css';
 
 function AdminDashboard() {
   const [issues, setIssues] = useState([]);
@@ -23,6 +25,7 @@ function AdminDashboard() {
   const [loadingInsights, setLoadingInsights] = useState(false);
 
   const navigate = useNavigate();
+  const { showSuccess, showError, showWarning } = useToast();
 
   useEffect(() => {
     fetchData(true); 
@@ -53,7 +56,7 @@ function AdminDashboard() {
     } catch (error) {
       console.error("Dashboard Fetch Error:", error);
       if (error.response?.status === 403 || error.response?.status === 401) {
-        alert('Admin access required.');
+        showError('Admin access required.');
         navigate('/');
       }
     } finally {
@@ -73,15 +76,15 @@ function AdminDashboard() {
       const result = response.data.data || response.data;
 
       if (result.success === false) {
-        alert("⚠️ AI Error: " + result.error);
+        showError("AI Error: " + result.error);
       } else {
         const insightsData = result.summary ? result : result.data;
         setAiInsights(insightsData);
         localStorage.setItem('civic_ai_insights', JSON.stringify(insightsData));
-        alert("✅ AI Analysis Updated!");
+        showSuccess("AI Analysis Updated!");
       }
     } catch (error) {
-      alert('Failed to connect to AI Service. Main Admin access required.');
+      showError('Failed to connect to AI Service. Main Admin access required.');
     } finally {
       setLoadingInsights(false);
     }
@@ -92,30 +95,30 @@ function AdminDashboard() {
       const response = await apiClient.patch(`/admin/issues/${issueId}/status`, { status: newStatus });
       if (response.data.success) {
         fetchData(false);
-        alert(`✅ Status updated to ${newStatus}`);
+        showSuccess(`Status updated to ${newStatus}`);
       }
     } catch (error) {
-      alert(error.response?.data?.error || 'Failed to update status.');
+      showError(error.response?.data?.error || 'Failed to update status.');
     }
   };
 
   const handleResolve = async (issueId) => {
     if (!resolveData.resolved_image_url) {
-      alert('Please provide the resolved image URL (upload a photo or paste a link)');
+      showWarning('Please provide the resolved image URL (upload a photo or paste a link)');
       return;
     }
     try {
       setResolving(true);
       const response = await apiClient.post(`/admin/issues/${issueId}/resolve`, resolveData);
       if (response.data.success) {
-        alert('✅ Issue resolved! Citizen notified.');
+        showSuccess('Issue resolved! Citizen notified.');
         setSelectedIssue(null);
         setResolveData({ resolution_notes: '', resolved_image_url: '' });
         fetchData(false);
         if (userRole === 'admin') fetchAIInsights(); 
       }
     } catch (error) {
-      alert(error.response?.data?.error || 'Failed to resolve issue.');
+      showError(error.response?.data?.error || 'Failed to resolve issue.');
     } finally {
       setResolving(false);
     }
@@ -124,7 +127,7 @@ function AdminDashboard() {
   const handleAdminImageUpload = async (file) => {
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
-      alert('Image must be less than 5MB');
+      showWarning('Image must be less than 5MB');
       return;
     }
     try {
@@ -138,13 +141,25 @@ function AdminDashboard() {
       
       if (data.success) {
         setResolveData({ ...resolveData, resolved_image_url: data.data.url });
+        showSuccess('Image uploaded successfully!');
       } else {
-        alert('❌ Upload failed.');
+        showError('Upload failed.');
       }
     } catch (error) {
-      alert('Upload failed: ' + error.message);
+      showError('Upload failed: ' + error.message);
     } finally {
       setUploadingAdminImage(false);
+    }
+  };
+
+  const handleFollowUpEmails = async () => {
+    if (window.confirm('Send follow-up emails to all pending issues?')) {
+      try {
+        const response = await apiClient.post('/admin/trigger-followups');
+        if (response.data.success) showSuccess('Follow-up emails sent! Check backend terminal.');
+      } catch (error) {
+        showError('Failed: ' + error.response?.data?.error);
+      }
     }
   };
 
@@ -154,35 +169,35 @@ function AdminDashboard() {
     return '#28a745';
   };
 
-  if (loading) return <div style={{ textAlign: 'center', marginTop: '50px', fontSize: '18px' }}>Loading Dashboard...</div>;
+  if (loading) return <div className="admin-loading">Loading Dashboard...</div>;
 
   return (
-    <div style={styles.container}>
+    <div className="admin-container">
       
       {/* HEADER */}
-      <div style={styles.header}>
+      <div className="glass-card admin-header">
         <div>
-          <h1 style={styles.headerTitle}>
-            {userRole === 'admin' ? '🛡️ Main Admin Command Center' : '👤 Department Admin Panel'}
+          <h1 className="admin-title">
+            {userRole === 'admin' ? 'Main Admin Center' : 'Department Admin'}
           </h1>
-          <p style={styles.headerSubtitle}>
-            Chennai Civic Issue Management 
-            {departmentScope === 'department' && ' - (Restricted to Your Department)'}
+          <p className="admin-subtitle">
+            Civic Issue Management 
+            {departmentScope === 'department' && ' — Departmental View'}
           </p>
         </div>
-        <div>
+        <div className="admin-header-actions">
           {/* ONLY Main Admins see the Analytics Button */}
           {userRole === 'admin' && (
-            <>
-            <button onClick={() => navigate('/admin/manage-dept-admins')} style={{ padding: '8px 16px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginRight: '10px', fontWeight: 'bold' }}>
-                👥 Manage Dept Admins
+            <div className="admin-button-group">
+            <button onClick={() => navigate('/admin/manage-dept-admins')} className="glass-button glass-button-primary">
+                ≡ Manage Dept Admins
               </button>
-            <button onClick={() => navigate('/admin/analytics')} style={{ padding: '8px 16px', backgroundColor: '#6f42c1', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', marginRight: '10px', fontWeight: 'bold' }}>
-              📊 Open Advanced Analytics
+            <button onClick={() => navigate('/admin/analytics')} className="glass-button glass-button-primary">
+              ◈ Advanced Analytics
             </button>
-            </>
+            </div>
           )}
-          <button onClick={() => navigate('/')} style={styles.backButton}>← Back</button>
+          <button onClick={() => navigate('/')} className="glass-button glass-button-secondary">◆ Back Home</button>
         </div>
       </div>
 
@@ -190,9 +205,9 @@ function AdminDashboard() {
       {userRole === 'admin' && (
         <div style={styles.aiInsightsSection}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-            <h3 style={{ margin: 0, color: '#6f42c1' }}>✨ Gemini AI Predictive Insights</h3>
+            <h3 style={{ margin: 0, color: '#6f42c1' }}>◇ AI Predictive Insights</h3>
             <button onClick={fetchAIInsights} style={styles.refreshButton}>
-              {loadingInsights ? '🧠 Analyzing...' : '🔄 Refresh AI Analysis'}
+              {loadingInsights ? '↻ Analyzing...' : '↪ Refresh Analysis'}
             </button>
           </div>
 
@@ -200,16 +215,16 @@ function AdminDashboard() {
             <p style={{ color: '#666' }}>Scanning database and generating predictions...</p>
           ) : aiInsights ? (
             <>
-              <div style={styles.aiSummary}><strong>📊 System Health:</strong> {aiInsights.summary}</div>
+              <div style={styles.aiSummary}><strong>≡ System Health:</strong> {aiInsights.summary}</div>
               <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: '300px' }}>
-                  <h4 style={{ color: '#dc3545', margin: '0 0 10px 0' }}>🚨 Critical Alerts</h4>
+                  <h4 style={{ color: '#dc3545', margin: '0 0 10px 0' }}>! Critical Alerts</h4>
                   <ul style={{ paddingLeft: '20px', margin: 0 }}>
                     {aiInsights.criticalAlerts?.map((alert, i) => <li key={i} style={{ marginBottom: '5px' }}>{alert}</li>)}
                   </ul>
                 </div>
                 <div style={{ flex: 1, minWidth: '300px' }}>
-                  <h4 style={{ color: '#007bff', margin: '0 0 10px 0' }}>🔮 AI Predictions</h4>
+                  <h4 style={{ color: '#007bff', margin: '0 0 10px 0' }}>◈ Predictions</h4>
                   <ul style={{ paddingLeft: '20px', margin: 0 }}>
                     {aiInsights.predictiveInsights?.map((pred, i) => <li key={i} style={{ marginBottom: '5px' }}>{pred}</li>)}
                   </ul>
@@ -217,113 +232,104 @@ function AdminDashboard() {
               </div>
             </>
           ) : (
-            <p style={{ color: '#666' }}>Click "Refresh AI Analysis" to generate insights.</p>
+            <p style={{ color: '#666' }}>Click "Refresh Analysis" to generate insights.</p>
           )}
         </div>
       )}
 
       {/* STATS */}
       {stats && (
-        <div style={styles.statsGrid}>
-          <div style={{ ...styles.statCard, borderTop: '4px solid #007bff' }}>
-            <div style={styles.statValue}>{stats.overview.total}</div>
-            <div style={styles.statLabel}>Total Issues</div>
+        <div className="admin-stats-grid">
+          <div className="admin-stat-card border-top-blue">
+            <div className="admin-stat-value">{stats.overview.total}</div>
+            <div className="admin-stat-label">Total Issues</div>
           </div>
-          <div style={{ ...styles.statCard, borderTop: '4px solid #ffc107' }}>
-            <div style={styles.statValue}>{stats.overview.pending}</div>
-            <div style={styles.statLabel}>Pending</div>
+          <div className="admin-stat-card border-top-yellow">
+            <div className="admin-stat-value">{stats.overview.pending}</div>
+            <div className="admin-stat-label">Pending</div>
           </div>
-          <div style={{ ...styles.statCard, borderTop: '4px solid #17a2b8' }}>
-            <div style={styles.statValue}>{stats.overview.in_progress}</div>
-            <div style={styles.statLabel}>In Progress</div>
+          <div className="admin-stat-card border-top-teal">
+            <div className="admin-stat-value">{stats.overview.in_progress}</div>
+            <div className="admin-stat-label">In Progress</div>
           </div>
-          <div style={{ ...styles.statCard, borderTop: '4px solid #28a745' }}>
-            <div style={styles.statValue}>{stats.overview.resolved}</div>
-            <div style={styles.statLabel}>Resolved</div>
+          <div className="admin-stat-card border-top-green">
+            <div className="admin-stat-value">{stats.overview.resolved}</div>
+            <div className="admin-stat-label">Resolved</div>
           </div>
         </div>
       )}
 
       {/* FILTER BAR & AUTOMATED CRON BUTTON */}
-      <div style={styles.filterBar}>
-        <h3 style={{ margin: 0 }}>📋 Issue Queue</h3>
-        <div style={styles.filters}>
+      <div className="admin-filter-bar">
+        <h3 className="admin-filter-title">◈ Issue Queue</h3>
+        <div className="admin-filters">
           
           {/* ONLY Main Admins see the Follow-up Trigger */}
           {userRole === 'admin' && (
             <button 
-              onClick={async () => {
-                if (window.confirm('Send follow-up emails to all pending issues?')) {
-                  try {
-                    const response = await apiClient.post('/admin/trigger-followups');
-                    if (response.data.success) alert('✅ Follow-up emails sent! Check backend terminal.');
-                  } catch (error) {
-                    alert('Failed: ' + error.response?.data?.error);
-                  }
-                }
-              }}
-              style={{...styles.refreshButton, backgroundColor: '#dc3545'}}
+              onClick={handleFollowUpEmails}
+              className="glass-button glass-button-danger"
             >
-              📧 Send Follow-Ups (Test)
+              ◎ Send Follow-Ups (Test)
             </button>
           )}
 
-          <select value={filter.status} onChange={(e) => setFilter({ ...filter, status: e.target.value })} style={styles.filterSelect}>
+          <select value={filter.status} onChange={(e) => setFilter({ ...filter, status: e.target.value })} className="glass-select">
             <option value="">All Statuses</option>
             <option value="Pending">Pending</option>
             <option value="Acknowledged">Acknowledged</option>
             <option value="In Progress">In Progress</option>
             <option value="Resolved">Resolved</option>
           </select>
-          <button onClick={() => fetchData(true)} style={styles.refreshButton}>🔄 Refresh Queue</button>
+          <button onClick={() => fetchData(true)} className="glass-button glass-button-secondary">↻ Refresh Queue</button>
         </div>
       </div>
 
       {/* ISSUES LIST */}
-      <div style={styles.issuesContainer}>
+      <div className="admin-issues-container">
         {issues.length === 0 ? (
-          <div style={styles.noIssues}>No issues found for your department.</div>
+          <div className="admin-no-issues">No issues found for your department.</div>
         ) : (
           issues.map((issue) => (
-            <div key={issue.id} style={styles.issueCard}>
-              <div style={styles.issueCardHeader}>
+            <div key={issue.id} className="admin-issue-card">
+              <div className="admin-issue-card-header">
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                   <strong>#{issue.id}</strong>
-                  <span style={styles.categoryTag}>{issue.category}</span>
-                  <span style={{ ...styles.badge, backgroundColor: getPriorityColor(issue.priority_score) }}>
+                  <span className="admin-category-tag">{issue.category}</span>
+                  <span className="admin-badge" style={{ backgroundColor: getPriorityColor(issue.priority_score) }}>
                     Priority: {issue.priority_score}/10
                   </span>
-                  <span style={{ ...styles.badge, backgroundColor: '#6c757d' }}>{issue.status}</span>
+                  <span className="admin-badge" style={{ backgroundColor: '#6c757d' }}>{issue.status}</span>
                 </div>
               </div>
               
-              <div style={{ marginBottom: '15px' }}>
-                <p style={{ fontSize: '15px', fontWeight: '500' }}>{issue.description}</p>
-                <div style={{ fontSize: '13px', color: '#666', marginBottom: '10px' }}>📍 {issue.location_address} | 👤 {issue.citizen_name || 'Citizen'}</div>
+              <div className="admin-issue-content">
+                <p className="admin-issue-description">{issue.description}</p>
+                <div className="admin-issue-details">◆ {issue.location_address} | ◈ {issue.citizen_name || 'Citizen'}</div>
                 
-                {/* 📸 BEFORE AND AFTER PHOTO GALLERY */}
-                <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', marginTop: '15px' }}>
+                {/* BEFORE AND AFTER PHOTO GALLERY */}
+                <div className="admin-photo-gallery">
                   {issue.image_url && (
-                    <div style={{ padding: '10px', backgroundColor: '#fff3cd', borderRadius: '6px', border: '1px solid #ffeeba' }}>
-                      <p style={{ margin: '0 0 5px 0', fontSize: '12px', fontWeight: 'bold', color: '#856404' }}>📸 BEFORE (Reported):</p>
-                      <img src={issue.image_url} alt="Citizen Evidence" style={{ maxWidth: '200px', maxHeight: '130px', borderRadius: '4px', cursor: 'pointer', objectFit: 'cover' }} onClick={() => window.open(issue.image_url, '_blank')} />
+                    <div className="admin-photo-box admin-photo-before">
+                      <p className="admin-photo-label">◆ BEFORE (Reported):</p>
+                      <img src={issue.image_url} alt="Citizen Evidence" className="admin-photo-image" onClick={() => window.open(issue.image_url, '_blank')} />
                     </div>
                   )}
 
                   {issue.resolved_image_url && (
-                    <div style={{ padding: '10px', backgroundColor: '#d4edda', borderRadius: '6px', border: '1px solid #c3e6cb' }}>
-                      <p style={{ margin: '0 0 5px 0', fontSize: '12px', fontWeight: 'bold', color: '#155724' }}>✅ AFTER (Resolved):</p>
-                      <img src={issue.resolved_image_url} alt="Resolution Evidence" style={{ maxWidth: '200px', maxHeight: '130px', borderRadius: '4px', cursor: 'pointer', objectFit: 'cover' }} onClick={() => window.open(issue.resolved_image_url, '_blank')} />
-                      {issue.resolution_notes && <p style={{ margin: '8px 0 0 0', fontSize: '12px', color: '#155724', maxWidth: '200px', wordWrap: 'break-word' }}><strong>Notes:</strong> {issue.resolution_notes}</p>}
+                    <div className="admin-photo-box admin-photo-after">
+                      <p className="admin-photo-label">✓ AFTER (Resolved):</p>
+                      <img src={issue.resolved_image_url} alt="Resolution Evidence" className="admin-photo-image" onClick={() => window.open(issue.resolved_image_url, '_blank')} />
+                      {issue.resolution_notes && <p className="admin-photo-notes"><strong>Notes:</strong> {issue.resolution_notes}</p>}
                     </div>
                   )}
                 </div>
               </div>
 
-              <div style={styles.actionButtons}>
-                {issue.status === 'Pending' && <button onClick={() => handleStatusUpdate(issue.id, 'Acknowledged')} style={{...styles.btn, backgroundColor: '#17a2b8'}}>👁️ Acknowledge</button>}
-                {issue.status === 'Acknowledged' && <button onClick={() => handleStatusUpdate(issue.id, 'In Progress')} style={{...styles.btn, backgroundColor: '#007bff'}}>🔧 Mark In Progress</button>}
-                {issue.status !== 'Resolved' && issue.status !== 'Closed' && <button onClick={() => setSelectedIssue(issue)} style={{...styles.btn, backgroundColor: '#28a745'}}>✅ Resolve Issue</button>}
+              <div className="admin-action-buttons">
+                {issue.status === 'Pending' && <button onClick={() => handleStatusUpdate(issue.id, 'Acknowledged')} className="glass-button glass-button-info">◎ Acknowledge</button>}
+                {issue.status === 'Acknowledged' && <button onClick={() => handleStatusUpdate(issue.id, 'In Progress')} className="glass-button glass-button-primary">◆ Mark In Progress</button>}
+                {issue.status !== 'Resolved' && issue.status !== 'Closed' && <button onClick={() => setSelectedIssue(issue)} className="glass-button glass-button-success">✓ Resolve Issue</button>}
               </div>
             </div>
           ))
@@ -332,35 +338,35 @@ function AdminDashboard() {
 
       {/* RESOLVE MODAL */}
       {selectedIssue && (
-        <div style={styles.modalOverlay}>
-          <div style={styles.modal}>
-            <h3 style={{ marginTop: 0 }}>✅ Resolve Issue #{selectedIssue.id}</h3>
+        <div className="admin-modal-overlay">
+          <div className="admin-modal">
+            <h3 className="admin-modal-title">✓ Resolve Issue #{selectedIssue.id}</h3>
             
-            <div style={{ marginBottom: '15px', padding: '15px', backgroundColor: '#f8f9fa', borderRadius: '8px', border: '1px solid #ddd' }}>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>📸 Upload Resolution Proof <span style={{color: 'red'}}>*</span></label>
-              <input type="file" accept="image/*" disabled={uploadingAdminImage} onChange={(e) => handleAdminImageUpload(e.target.files[0])} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', backgroundColor: 'white' }} />
-              {uploadingAdminImage && <small style={{ color: '#007bff', display: 'block', marginTop: '5px' }}>Uploading to server...</small>}
+            <div className="admin-form-section">
+              <label className="admin-form-label">◆ Upload Resolution Proof <span className="admin-required">*</span></label>
+              <input type="file" accept="image/*" disabled={uploadingAdminImage} onChange={(e) => handleAdminImageUpload(e.target.files[0])} className="admin-file-input" />
+              {uploadingAdminImage && <small className="admin-loading-text">↻ Uploading to server...</small>}
               
-              <div style={{ marginTop: '10px' }}>
-                <small style={{ color: '#666', display: 'block', marginBottom: '3px' }}>Or paste URL manually:</small>
-                <input type="text" placeholder="https://i.ibb.co/..." value={resolveData.resolved_image_url} onChange={(e) => setResolveData({...resolveData, resolved_image_url: e.target.value})} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px' }} />
+              <div className="admin-url-section">
+                <small className="admin-url-label">Or paste URL manually:</small>
+                <input type="text" placeholder="https://i.ibb.co/..." value={resolveData.resolved_image_url} onChange={(e) => setResolveData({...resolveData, resolved_image_url: e.target.value})} className="admin-text-input" />
               </div>
 
               {resolveData.resolved_image_url && (
-                <div style={{ marginTop: '10px', textAlign: 'center' }}>
-                   <img src={resolveData.resolved_image_url} alt="Resolved Preview" style={{ maxHeight: '100px', borderRadius: '4px', border: '1px solid #28a745' }} />
+                <div className="admin-preview-container">
+                   <img src={resolveData.resolved_image_url} alt="Resolved Preview" className="admin-preview-image" />
                 </div>
               )}
             </div>
 
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>📝 Resolution Notes</label>
-              <textarea placeholder="Describe what was done to fix this issue..." value={resolveData.resolution_notes} onChange={(e) => setResolveData({...resolveData, resolution_notes: e.target.value})} style={{ width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', fontFamily: 'inherit' }} rows={3} />
+            <div className="admin-form-section">
+              <label className="admin-form-label">◈ Resolution Notes</label>
+              <textarea placeholder="Describe what was done to fix this issue..." value={resolveData.resolution_notes} onChange={(e) => setResolveData({...resolveData, resolution_notes: e.target.value})} className="admin-textarea" rows={3} />
             </div>
 
-            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
-              <button onClick={() => { setSelectedIssue(null); setResolveData({ resolution_notes: '', resolved_image_url: '' }); }} style={{...styles.btn, backgroundColor: '#6c757d'}}>Cancel</button>
-              <button onClick={() => handleResolve(selectedIssue.id)} disabled={resolving || uploadingAdminImage} style={{...styles.btn, backgroundColor: '#28a745'}}>{resolving ? 'Resolving...' : 'Confirm Resolution'}</button>
+            <div className="admin-modal-actions">
+              <button onClick={() => { setSelectedIssue(null); setResolveData({ resolution_notes: '', resolved_image_url: '' }); }} className="glass-button glass-button-secondary">Cancel</button>
+              <button onClick={() => handleResolve(selectedIssue.id)} disabled={resolving || uploadingAdminImage} className="glass-button glass-button-success">{resolving ? '↻ Resolving...' : '✓ Confirm Resolution'}</button>
             </div>
           </div>
         </div>

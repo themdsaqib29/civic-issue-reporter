@@ -1,38 +1,98 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   APP LAYOUT & STYLING
+   ═══════════════════════════════════════════════════════════════════════ */
+
 .App {
-  text-align: center;
-}
-
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  background-color: #282c34;
   min-height: 100vh;
+  background: var(--color-bg-primary);
   display: flex;
   flex-direction: column;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   MAIN CONTENT AREA
+   ───────────────────────────────────────────────────────────────── */
+
+main {
+  flex: 1;
+  padding: var(--space-8) 0;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   HEADER & NAVIGATION
+   ───────────────────────────────────────────────────────────────── */
+
+header {
+  background: var(--color-glass-bg);
+  border-bottom: 1px solid var(--color-border);
+  backdrop-filter: var(--backdrop-blur);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-fixed);
+  padding: var(--space-4) 0;
+}
+
+nav {
+  display: flex;
+  gap: var(--space-6);
   align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
 }
 
-.App-link {
-  color: #61dafb;
+nav a {
+  color: var(--color-text-primary);
+  font-weight: var(--weight-medium);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  transition: var(--transition-fast);
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
+nav a:hover {
+  background: var(--color-bg-secondary);
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+nav a.active {
+  color: var(--color-primary);
+  background: rgba(91, 125, 190, 0.1);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   FOOTER
+   ───────────────────────────────────────────────────────────────── */
+
+footer {
+  background: var(--color-bg-secondary);
+  border-top: 1px solid var(--color-border);
+  padding: var(--space-8) 0;
+  margin-top: auto;
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   PAGE TRANSITIONS
+   ───────────────────────────────────────────────────────────────── */
+
+.page-enter {
+  animation: fadeIn 300ms var(--ease-out);
+}
+
+.page-exit {
+  animation: fadeOut 300ms var(--ease-in);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   RESPONSIVE ADJUSTMENTS
+   ───────────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  main {
+    padding: var(--space-4) 0;
   }
-  to {
-    transform: rotate(360deg);
+
+  nav {
+    flex-wrap: wrap;
+    gap: var(--space-2);
   }
 }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/apiClient';
+import './StatsPage.css';
 
 function StatsPage() {
   const [issues, setIssues] = useState([]);
@@ -43,50 +44,53 @@ function StatsPage() {
     return acc;
   }, {});
 
-  if (loading) return <div style={styles.loading}>Loading...</div>;
+  if (loading) return <div className="stats-loading">Loading...</div>;
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h2>📊 Analytics Dashboard</h2>
-        <button onClick={() => navigate('/')} style={styles.backButton}>
-          ← Back
+    <div className="stats-container">
+      <div className="stats-header glass-card">
+        <div>
+          <h2 className="stats-title">Analytics Dashboard</h2>
+          <p className="stats-subtitle">Community insights and trends</p>
+        </div>
+        <button onClick={() => navigate('/')} className="glass-button ghost">
+          ◆ Back to Home
         </button>
       </div>
 
-      <div style={styles.statsGrid}>
-        <div style={{ ...styles.statCard, borderLeft: '4px solid #007bff' }}>
-          <div style={styles.statValue}>{totalIssues}</div>
-          <div style={styles.statLabel}>Total Issues</div>
+      <div className="stats-grid">
+        <div className="stat-card stat-card-blue">
+          <div className="stat-value">{totalIssues}</div>
+          <div className="stat-label">Total Issues</div>
         </div>
         
-        <div style={{ ...styles.statCard, borderLeft: '4px solid #dc3545' }}>
-          <div style={styles.statValue}>{highPriority}</div>
-          <div style={styles.statLabel}>High Priority</div>
+        <div className="stat-card stat-card-red">
+          <div className="stat-value">{highPriority}</div>
+          <div className="stat-label">High Priority</div>
         </div>
         
-        <div style={{ ...styles.statCard, borderLeft: '4px solid #ffc107' }}>
-          <div style={styles.statValue}>{mediumPriority}</div>
-          <div style={styles.statLabel}>Medium Priority</div>
+        <div className="stat-card stat-card-yellow">
+          <div className="stat-value">{mediumPriority}</div>
+          <div className="stat-label">Medium Priority</div>
         </div>
         
-        <div style={{ ...styles.statCard, borderLeft: '4px solid #28a745' }}>
-          <div style={styles.statValue}>{lowPriority}</div>
-          <div style={styles.statLabel}>Low Priority</div>
+        <div className="stat-card stat-card-green">
+          <div className="stat-value">{lowPriority}</div>
+          <div className="stat-label">Low Priority</div>
         </div>
       </div>
 
-      <div style={styles.chartsGrid}>
-        <div style={styles.chartCard}>
-          <h3>Issues by Category</h3>
-          <div style={styles.barChart}>
+      <div className="stats-charts-grid">
+        <div className="stats-chart-card">
+          <h3>◈ Issues by Category</h3>
+          <div className="stats-bar-chart">
             {Object.entries(categoryStats).map(([category, count]) => (
-              <div key={category} style={styles.barRow}>
-                <div style={styles.barLabel}>{category}</div>
-                <div style={styles.barContainer}>
+              <div key={category} className="stats-bar-row">
+                <div className="stats-bar-label">{category}</div>
+                <div className="stats-bar-container">
                   <div
+                    className="stats-bar"
                     style={{
-                      ...styles.bar,
                       width: `${(count / totalIssues) * 100}%`,
                     }}
                   >
@@ -98,18 +102,17 @@ function StatsPage() {
           </div>
         </div>
 
-        <div style={styles.chartCard}>
-          <h3>Issues by Department</h3>
-          <div style={styles.barChart}>
+        <div className="stats-chart-card">
+          <h3>◈ Issues by Department</h3>
+          <div className="stats-bar-chart">
             {Object.entries(departmentStats).map(([dept, count]) => (
-              <div key={dept} style={styles.barRow}>
-                <div style={styles.barLabel}>{dept}</div>
-                <div style={styles.barContainer}>
+              <div key={dept} className="stats-bar-row">
+                <div className="stats-bar-label">{dept}</div>
+                <div className="stats-bar-container">
                   <div
+                    className="stats-bar stats-bar-green"
                     style={{
-                      ...styles.bar,
                       width: `${(count / totalIssues) * 100}%`,
-                      backgroundColor: '#28a745',
                     }}
                   >
                     {count}
@@ -123,96 +126,5 @@ function StatsPage() {
     </div>
   );
 }
-
-const styles = {
-  container: {
-    padding: '20px',
-    maxWidth: '1200px',
-    margin: '0 auto',
-    backgroundColor: '#f5f5f5',
-    minHeight: '100vh',
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '30px',
-  },
-  backButton: {
-    padding: '10px 20px',
-    backgroundColor: '#6c757d',
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    cursor: 'pointer',
-  },
-  loading: {
-    textAlign: 'center',
-    padding: '100px',
-  },
-  statsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '20px',
-    marginBottom: '30px',
-  },
-  statCard: {
-    backgroundColor: 'white',
-    padding: '30px 20px',
-    borderRadius: '8px',
-    textAlign: 'center',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-  },
-  statValue: {
-    fontSize: '48px',
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  statLabel: {
-    fontSize: '14px',
-    color: '#666',
-    marginTop: '10px',
-  },
-  chartsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))',
-    gap: '20px',
-  },
-  chartCard: {
-    backgroundColor: 'white',
-    padding: '20px',
-    borderRadius: '8px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-  },
-  barChart: {
-    marginTop: '20px',
-  },
-  barRow: {
-    marginBottom: '15px',
-  },
-  barLabel: {
-    fontSize: '14px',
-    marginBottom: '5px',
-    fontWeight: '500',
-  },
-  barContainer: {
-    backgroundColor: '#e9ecef',
-    borderRadius: '4px',
-    height: '30px',
-    position: 'relative',
-  },
-  bar: {
-    backgroundColor: '#007bff',
-    height: '100%',
-    borderRadius: '4px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    paddingRight: '10px',
-    color: 'white',
-    fontWeight: 'bold',
-    minWidth: '40px',
-  },
-};
 
 export default StatsPage;

@@ -520,3 +520,27 @@ exports.getMyIssues = async (req, res) => {
 };
 // Alias for chat
 exports.reportIssue = exports.createIssue;
+
+// Get public analytics data for unauthenticated users (login page)
+exports.getPublicAnalytics = async (req, res) => {
+  try {
+    const query = `
+      SELECT id, vote_count, priority_score, location_address, status
+      FROM issues
+      ORDER BY created_at DESC
+      LIMIT 100
+    `;
+    const result = await pool.query(query);
+    
+    res.json({ 
+      success: true, 
+      data: result.rows 
+    });
+  } catch (error) {
+    console.error('Get public analytics error:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch analytics' 
+    });
+  }
+};

@@ -1,0 +1,511 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   ANIMATIONS - Transitions & Keyframes
+   Smooth, Modern Motion for Glassmorphism UI
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ─────────────────────────────────────────────────────────────────
+   FADE ANIMATIONS
+   ───────────────────────────────────────────────────────────────── */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 300ms var(--ease-out) forwards;
+}
+
+.animate-fade-out {
+  animation: fadeOut 300ms var(--ease-out) forwards;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   SLIDE ANIMATIONS
+   ───────────────────────────────────────────────────────────────── */
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideLeft {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideRight {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 300ms var(--ease-out) forwards;
+}
+
+.animate-slide-down {
+  animation: slideDown 300ms var(--ease-out) forwards;
+}
+
+.animate-slide-left {
+  animation: slideLeft 300ms var(--ease-out) forwards;
+}
+
+.animate-slide-right {
+  animation: slideRight 300ms var(--ease-out) forwards;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   SCALE ANIMATIONS
+   ───────────────────────────────────────────────────────────────── */
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes scaleOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+.animate-scale-in {
+  animation: scaleIn 200ms var(--ease-out) forwards;
+}
+
+.animate-scale-out {
+  animation: scaleOut 200ms var(--ease-in) forwards;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   PULSE ANIMATIONS (Breathing Effect)
+   ───────────────────────────────────────────────────────────────── */
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s var(--ease-in-out) infinite;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   BOUNCE ANIMATIONS
+   ───────────────────────────────────────────────────────────────── */
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.animate-bounce {
+  animation: bounce 1s var(--ease-in-out) infinite;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   SPIN ANIMATION (Loading)
+   ───────────────────────────────────────────────────────────────── */
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   SHIMMER ANIMATION (Loading Skeleton)
+   ───────────────────────────────────────────────────────────────── */
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   WIGGLE ANIMATION (Subtle Playful Effect)
+   ───────────────────────────────────────────────────────────────── */
+
+@keyframes wiggle {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-1deg);
+  }
+  75% {
+    transform: rotate(1deg);
+  }
+}
+
+.animate-wiggle {
+  animation: wiggle 200ms ease-in-out;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   JELLY/MARSHMALLOW EFFECT (Subtle Squash & Stretch)
+   ───────────────────────────────────────────────────────────────── */
+
+@keyframes jelly {
+  0%, 100% {
+    transform: scaleY(1) scaleX(1);
+  }
+  25% {
+    transform: scaleY(0.95) scaleX(1.05);
+  }
+  50% {
+    transform: scaleY(1.05) scaleX(0.95);
+  }
+  75% {
+    transform: scaleY(0.98) scaleX(1.02);
+  }
+}
+
+.animate-jelly {
+  animation: jelly 600ms ease-in-out;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   COLOR TRANSITION
+   ───────────────────────────────────────────────────────────────── */
+
+@keyframes colorShift {
+  0% {
+    color: var(--color-text-primary);
+  }
+  100% {
+    color: var(--color-primary);
+  }
+}
+
+.animate-color-shift {
+  animation: colorShift 300ms var(--ease-out) forwards;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   GRADIENT ANIMATION
+   ───────────────────────────────────────────────────────────────── */
+
+@keyframes gradientFlow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradientFlow 3s ease infinite;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   GLOW ANIMATION
+   ───────────────────────────────────────────────────────────────── */
+
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(91, 125, 190, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(91, 125, 190, 0.6);
+  }
+}
+
+.animate-glow {
+  animation: glow 2s var(--ease-in-out) infinite;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   FLIP ANIMATION
+   ───────────────────────────────────────────────────────────────── */
+
+@keyframes flipIn {
+  from {
+    opacity: 0;
+    transform: perspective(400px) rotateY(90deg);
+  }
+  to {
+    opacity: 1;
+    transform: perspective(400px) rotateY(0deg);
+  }
+}
+
+.animate-flip-in {
+  animation: flipIn 600ms var(--ease-out) forwards;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   GRADIENT TEXT EFFECT
+   ───────────────────────────────────────────────────────────────── */
+
+.gradient-text {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: var(--weight-bold);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   RIPPLE EFFECT (For Buttons)
+   ───────────────────────────────────────────────────────────────── */
+
+@keyframes ripple {
+  from {
+    width: 0;
+    height: 0;
+    opacity: 1;
+  }
+  to {
+    width: 300px;
+    height: 300px;
+    opacity: 0;
+  }
+}
+
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(91, 125, 190, 0.4);
+  animation: ripple 600ms ease-out;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   ENTRANCE ANIMATIONS (Page/Component Load)
+   ───────────────────────────────────────────────────────────────── */
+
+@keyframes slideInTop {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInBottom {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-entrance {
+  animation: slideUp 500ms var(--ease-out) forwards;
+}
+
+.animate-entrance-slow {
+  animation: slideUp 700ms var(--ease-out) forwards;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   STAGGER ANIMATION (For Lists)
+   ───────────────────────────────────────────────────────────────── */
+
+.stagger-item {
+  animation: slideUp 300ms var(--ease-out) both;
+}
+
+.stagger-item:nth-child(1) { animation-delay: 0ms; }
+.stagger-item:nth-child(2) { animation-delay: 50ms; }
+.stagger-item:nth-child(3) { animation-delay: 100ms; }
+.stagger-item:nth-child(4) { animation-delay: 150ms; }
+.stagger-item:nth-child(5) { animation-delay: 200ms; }
+.stagger-item:nth-child(n+6) { animation-delay: 250ms; }
+
+/* ─────────────────────────────────────────────────────────────────
+   SMOOTH SCROLL TRANSITION
+   ───────────────────────────────────────────────────────────────── */
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   TRANSITION UTILITIES
+   ───────────────────────────────────────────────────────────────── */
+
+.transition-fast {
+  transition: var(--transition-fast);
+}
+
+.transition-base {
+  transition: var(--transition-base);
+}
+
+.transition-slow {
+  transition: var(--transition-slow);
+}
+
+.transition-colors {
+  transition: color 150ms var(--ease-out), background-color 150ms var(--ease-out), border-color 150ms var(--ease-out);
+}
+
+.transition-transform {
+  transition: transform 150ms var(--ease-out);
+}
+
+.transition-all {
+  transition: all 150ms var(--ease-out);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   HOVER SCALE EFFECT
+   ───────────────────────────────────────────────────────────────── */
+
+.hover-scale {
+  transition: transform 150ms var(--ease-out);
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+
+.hover-scale-lg:hover {
+  transform: scale(1.05);
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   SMOOTH LINE UNDERLINE
+   ───────────────────────────────────────────────────────────────── */
+
+.underline-animate {
+  position: relative;
+  text-decoration: none;
+}
+
+.underline-animate::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 2px;
+  bottom: -4px;
+  left: 0;
+  background: var(--color-primary);
+  transition: width 300ms var(--ease-out);
+}
+
+.underline-animate:hover::after {
+  width: 100%;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   DELAY UTILITIES (For Staggered Effects)
+   ───────────────────────────────────────────────────────────────── */
+
+.delay-75 { animation-delay: 75ms; }
+.delay-100 { animation-delay: 100ms; }
+.delay-150 { animation-delay: 150ms; }
+.delay-200 { animation-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; }
+.delay-500 { animation-delay: 500ms; }

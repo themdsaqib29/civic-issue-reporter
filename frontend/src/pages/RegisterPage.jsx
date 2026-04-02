@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { register } from '../services/authService';
+import './AuthPages.css';
 
 function RegisterPage() {
   const [formData, setFormData] = useState({ name: '', email: '', password: '' });
@@ -34,106 +35,124 @@ function RegisterPage() {
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h2 style={styles.title}>Register</h2>
-        <form onSubmit={handleSubmit} style={styles.form}>
-          {error && <div style={styles.error}>{error}</div>}
-          
-          <input
-            type="text"
-            name="name"
-            placeholder="Full Name"
-            value={formData.name}
-            onChange={handleChange}
-            required
-            style={styles.input}
-          />
-          
-          <input
-            type="email"
-            name="email"
-            placeholder="Email"
-            value={formData.email}
-            onChange={handleChange}
-            required
-            style={styles.input}
-          />
-          
-          <input
-            type="password"
-            name="password"
-            placeholder="Password (min 6 characters)"
-            value={formData.password}
-            onChange={handleChange}
-            required
-            style={styles.input}
-          />
-          
-          <button type="submit" disabled={loading} style={styles.button}>
-            {loading ? 'Registering...' : 'Register'}
-          </button>
-        </form>
-        
-        <p style={styles.link}>
-          Already have an account? <Link to="/login">Login here</Link>
-        </p>
+    <div className="auth-container">
+      <div className="auth-wrapper">
+        {/* Decorative background elements */}
+        <div className="auth-decoration auth-decoration-1"></div>
+        <div className="auth-decoration auth-decoration-2"></div>
+
+        {/* Auth Card */}
+        <div className="glass-card auth-card animate-slide-up">
+          <div className="auth-header">
+            <h2 className="auth-title">Create Account</h2>
+            <p className="auth-subtitle">Join the civic community</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="auth-form">
+            {/* Error Alert */}
+            {error && (
+              <div className="glass-alert error animate-jelly">
+                <div className="glass-alert-icon">!</div>
+                <div className="glass-alert-content">
+                  <div className="glass-alert-message">{error}</div>
+                </div>
+              </div>
+            )}
+
+            {/* Full Name Field */}
+            <div className="form-group">
+              <label htmlFor="name" className="form-label">Full Name</label>
+              <input
+                type="text"
+                id="name"
+                name="name"
+                className="glass-input"
+                placeholder="John Doe"
+                value={formData.name}
+                onChange={handleChange}
+                required
+              />
+            </div>
+
+            {/* Email Field */}
+            <div className="form-group">
+              <label htmlFor="email" className="form-label">Email Address</label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                className="glass-input"
+                placeholder="you@example.com"
+                value={formData.email}
+                onChange={handleChange}
+                required
+              />
+            </div>
+
+            {/* Password Field */}
+            <div className="form-group">
+              <label htmlFor="password" className="form-label">Password</label>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                className="glass-input"
+                placeholder="••••••••"
+                value={formData.password}
+                onChange={handleChange}
+                required
+              />
+              <p className="form-hint">Must be at least 6 characters</p>
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="glass-button primary auth-submit-btn"
+            >
+              {loading ? (
+                <>
+                  <span className="animate-spin">↻</span> Creating account...
+                </>
+              ) : (
+                'Create Account'
+              )}
+            </button>
+          </form>
+
+          {/* Divider */}
+          <div className="glass-divider"></div>
+
+          {/* Sign In Link */}
+          <div className="auth-footer">
+            <p className="auth-footer-text">
+              Already have an account?{' '}
+              <Link to="/login" className="auth-link">
+                Sign in here
+              </Link>
+            </p>
+          </div>
+        </div>
+
+        {/* Info Box */}
+        <div className="auth-info-box glass-card animate-slide-up" style={{ animationDelay: '100ms' }}>
+          <div className="info-item">
+            <span className="info-icon">✓</span>
+            <span>Free to join</span>
+          </div>
+          <div className="info-item">
+            <span className="info-icon">◆</span>
+            <span>Your data is secure</span>
+          </div>
+          <div className="info-item">
+            <span className="info-icon">◈</span>
+            <span>Make a difference</span>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
-
-const styles = {
-  container: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: '100vh',
-    backgroundColor: '#f5f5f5',
-  },
-  card: {
-    backgroundColor: 'white',
-    padding: '40px',
-    borderRadius: '8px',
-    boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
-    width: '100%',
-    maxWidth: '400px',
-  },
-  title: {
-    textAlign: 'center',
-    marginBottom: '30px',
-    color: '#333',
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '15px',
-  },
-  input: {
-    padding: '12px',
-    fontSize: '16px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-  },
-  button: {
-    padding: '12px',
-    fontSize: '16px',
-    backgroundColor: '#28a745',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-  },
-  error: {
-    padding: '10px',
-    backgroundColor: '#f8d7da',
-    color: '#721c24',
-    borderRadius: '4px',
-  },
-  link: {
-    textAlign: 'center',
-    marginTop: '20px',
-  },
-};
 
 export default RegisterPage;
