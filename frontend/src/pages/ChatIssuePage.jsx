@@ -17,6 +17,12 @@ function ChatIssuePage() {
   
   const [imageUrl, setImageUrl] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
+  
+  // Duplicate Detection State
+  const [duplicateWarning, setDuplicateWarning] = useState(null);
+  const [confirmSubmit, setConfirmSubmit] = useState(false);
+  const [pendingSubmitPayload, setPendingSubmitPayload] = useState(null);
+  
   const messagesEndRef = useRef(null);
   const navigate = useNavigate();
   const { showSuccess, showError, showWarning } = useToast();
@@ -129,21 +135,94 @@ function ChatIssuePage() {
         location_address: issueData.location,
         severity: issueData.severity,
         image_url: imageUrl || null
-        //location_lat: 13.0827,
-        //location_lng: 80.2707
       };
+
+      // Step 1: CHECK FOR DUPLICATES FIRST (does not create issue)
+      const checkResponse = await apiClient.post('/issues/check-duplicates', {
+        description: issueData.description,
+        category: issueData.category,
+        location_address: issueData.location
+      });
+
+      // Step 2: If duplicates found, show modal and don't create issue yet
+      if (checkResponse.data.duplicateDetection.isDuplicate) {
+        setDuplicateWarning(checkResponse.data.duplicateDetection);
+        setPendingSubmitPayload(payload);
+        showWarning('Similar issue detected. Consider upvoting instead!');
+        setLoading(false);
+        return;
+      }
+
+      // Step 3: No duplicates found -> create issue immediately
+      const createResponse = await apiClient.post('/issues', payload);
     
-      const response = await apiClient.post('/issues', payload);
-    
-      if (response.data.success) {
-        showSuccess(`Issue submitted successfully! Priority: ${response.data.priorityLevel}`);
+      if (createResponse.data.success) {
+        showSuccess(`Issue submitted successfully! Priority: ${createResponse.data.priorityLevel}`);
+        setIssueData(null);
+        setImageUrl('');
+        setDuplicateWarning(null);
+        setConfirmSubmit(false);
         navigate('/');
       } else {
-        showError('Failed to submit issue: ' + (response.data.error || 'Unknown error'));
+        showError('Failed to submit issue: ' + (createResponse.data.error || 'Unknown error'));
       }
     } catch (error) {
       const errorMsg = error.response?.data?.error || error.message || 'Failed to submit issue';
       showError('Error: ' + errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleConfirmDuplicateSubmit = async () => {
+    setLoading(true);
+    
+    try {
+      const response = await apiClient.post('/issues', pendingSubmitPayload);
+      
+      if (response.data.success) {
+        showSuccess(`Issue submitted successfully! Priority: ${response.data.priorityLevel}`);
+        setIssueData(null);
+        setImageUrl('');
+        setDuplicateWarning(null);
+        setConfirmSubmit(false);
+        navigate('/');
+      } else {
+        showError('Failed to submit issue');
+      }
+    } catch (error) {
+      showError('Error: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpvote = async (issueId) => {
+    setLoading(true);
+    try {
+      const upvoteResponse = await apiClient.post(`/issues/${issueId}/vote`);
+      
+      if (upvoteResponse.data.success) {
+        showSuccess('✓ Thanks for upvoting! You\'ve helped prioritize this issue.');
+        setDuplicateWarning(null);
+        setIssueData(null);
+        setImageUrl('');
+        setTimeout(() => navigate('/'), 1500);
+      } else {
+        showError('Failed to upvote issue');
+      }
+    } catch (error) {
+      if (error.response?.status === 400 && error.response?.data?.error?.includes('already voted')) {
+        showWarning('You\'ve already voted for this issue!');
+        setTimeout(() => {
+          setDuplicateWarning(null);
+          setIssueData(null);
+          setImageUrl('');
+          navigate('/');
+        }, 1500);
+      } else {
+        showError('Error: ' + (error.response?.data?.error || error.message));
+      }
     } finally {
       setLoading(false);
     }
@@ -358,6 +437,81 @@ function ChatIssuePage() {
           )}
         </div>
       </div>
+
+      {/* DUPLICATE WARNING MODAL */}
+      {duplicateWarning && (
+        <div className="duplicate-modal-overlay">
+          <div className="duplicate-modal glass-card">
+            <div className="modal-header">
+              <h2>⚠️ Possible Duplicate Detected</h2>
+              <button
+                onClick={() => setDuplicateWarning(null)}
+                className="modal-close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="modal-content">
+              <p className="confidence-text">
+                <strong>Confidence: {duplicateWarning.confidence}%</strong>
+              </p>
+              <p className="duplicate-message">
+                Similar issue(s) already reported. You can upvote an existing issue or submit as new.
+              </p>
+
+              {duplicateWarning.candidates && duplicateWarning.candidates.length > 0 && (
+                <div className="candidates-container">
+                  <h3>📍 Similar Issues Found:</h3>
+                  {duplicateWarning.candidates.slice(0, 3).map((candidate) => (
+                    <div key={candidate.issueId} className="candidate-card glass-card">
+                      <div className="candidate-header">
+                        <strong>Issue #{candidate.issueId}</strong>
+                        <span className="combined-score">
+                          Match: {Math.round(candidate.combined * 100)}%
+                        </span>
+                      </div>
+                      <div className="candidate-scores">
+                        <div className="score-item">
+                          <span>📍 Geographic:</span>
+                          <span>{(candidate.geoScore * 100).toFixed(0)}% ({candidate.distanceKm.toFixed(3)} km)</span>
+                        </div>
+                        <div className="score-item">
+                          <span>📝 Text Similarity:</span>
+                          <span>{(candidate.textSim * 100).toFixed(0)}%</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleUpvote(candidate.issueId)}
+                        disabled={loading}
+                        className="glass-button upvote-btn"
+                      >
+                        {loading ? '↻ Upvoting...' : '👍 Upvote This Issue'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="modal-actions">
+                <button
+                  onClick={() => setDuplicateWarning(null)}
+                  className="glass-button secondary"
+                >
+                  ← Back to Edit
+                </button>
+                <button
+                  onClick={handleConfirmDuplicateSubmit}
+                  disabled={loading}
+                  className="glass-button primary danger"
+                >
+                  {loading ? '↻ Submitting...' : '✓ Report as New Issue'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

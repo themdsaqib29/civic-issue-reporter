@@ -6,6 +6,9 @@ const { verifyToken } = require('../middleware/auth');
 // Public route - for unauthenticated users (analytics on login page)
 router.get('/public/analytics', issueController.getPublicAnalytics);
 
+// Check for duplicates before creating (does NOT create issue)
+router.post('/check-duplicates', verifyToken, issueController.checkDuplicates);
+
 // All other issue routes require authentication
 router.get('/my-issues', verifyToken, issueController.getMyIssues);
 router.post('/', verifyToken, issueController.createIssue);

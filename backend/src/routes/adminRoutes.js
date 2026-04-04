@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
+const hotspotService = require('../services/hotspotService');
 const adminAuth = require('../middleware/adminAuth'); 
 const auth = require('../middleware/auth');
 
@@ -36,5 +37,25 @@ router.post('/trigger-followups', requireMainAdmin, safeRoute(adminController.tr
 // Department Admin Management
 router.post('/dept-admins', requireMainAdmin, safeRoute(adminController.createDepartmentAdmin, 'createDepartmentAdmin'));
 router.get('/dept-admins', requireMainAdmin, safeRoute(adminController.getDepartmentAdmins, 'getDepartmentAdmins'));
+
+// Geographic Hotspot Detection
+router.get('/hotspots', requireMainAdmin, async (req, res) => {
+  try {
+    const hotspots = await hotspotService.detectHotspots();
+    res.json({
+      success: true,
+      data: hotspots,
+      timestamp: new Date().toISOString(),
+      totalHotspots: hotspots.length,
+      totalIssuesInHotspots: hotspots.reduce((sum, h) => sum + h.issueCount, 0)
+    });
+  } catch (error) {
+    console.error('❌ GET /hotspots error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to detect hotspots'
+    });
+  }
+});
 
 module.exports = router;

@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../components/Toast';
 import apiClient from '../services/apiClient';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import './AdminDashboard.css';
 
 function AdminDashboard() {
@@ -23,6 +25,14 @@ function AdminDashboard() {
   // AI Insights State
   const [aiInsights, setAiInsights] = useState(null);
   const [loadingInsights, setLoadingInsights] = useState(false);
+
+  // Hotspot Detection State
+  const [hotspots, setHotspots] = useState([]);
+  const [loadingHotspots, setLoadingHotspots] = useState(false);
+  const [showHotspots, setShowHotspots] = useState(false);
+  const mapRef = useRef(null);
+  const mapInstance = useRef(null);
+  const hotspotsLayerGroup = useRef(null);
 
   const navigate = useNavigate();
   const { showSuccess, showError, showWarning } = useToast();
@@ -163,6 +173,156 @@ function AdminDashboard() {
     }
   };
 
+  // HOTSPOT DETECTION FUNCTIONS
+  const fetchHotspots = async () => {
+    try {
+      setLoadingHotspots(true);
+      const response = await apiClient.get('/admin/hotspots');
+      if (response.data.success) {
+        setHotspots(response.data.data);
+        showSuccess(`Detected ${response.data.totalHotspots} hotspots with ${response.data.totalIssuesInHotspots} issues`);
+        setShowHotspots(true);
+      }
+    } catch (error) {
+      showError('Failed to detect hotspots: ' + (error.response?.data?.error || error.message));
+    } finally {
+      setLoadingHotspots(false);
+    }
+  };
+
+  const initializeMap = useCallback(() => {
+    // Initialize map if not already done
+    if (!mapInstance.current) {
+      mapInstance.current = L.map(mapRef.current).setView([13.0827, 80.2707], 11);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19,
+      }).addTo(mapInstance.current);
+    }
+
+    // Clear existing hotspot layers
+    if (hotspotsLayerGroup.current) {
+      mapInstance.current.removeLayer(hotspotsLayerGroup.current);
+    }
+    hotspotsLayerGroup.current = L.layerGroup().addTo(mapInstance.current);
+
+    // Add hotspot circles and markers
+    hotspots.forEach((hotspot) => {
+      const { center, issueCount, hotspotId, issues } = hotspot;
+      
+      // Color intensity based on issue count
+      const maxCount = Math.max(...hotspots.map(h => h.issueCount), 1);
+      const intensity = issueCount / maxCount;
+      const color = `hsl(0, 100%, ${100 - intensity * 50}%)`;
+      
+      // Draw circle for hotspot
+      L.circle([center.lat, center.lng], {
+        color: color,
+        weight: 2,
+        opacity: 0.8,
+        fillColor: color,
+        fillOpacity: 0.3,
+        radius: 500, // 500 meters
+        dashArray: '5, 5'
+      })
+        .bindPopup(`
+          <div style="font-size: 12px; width: 200px;">
+            <strong>🔥 Hotspot #${hotspotId}</strong><br/>
+            <span style="color: #666;">${issueCount} issues clustered here</span><br/>
+            <span style="font-size: 11px; color: #999;">Center: ${center.lat.toFixed(4)}, ${center.lng.toFixed(4)}</span>
+          </div>
+        `)
+        .addTo(hotspotsLayerGroup.current);
+
+      // Add center marker
+      L.marker([center.lat, center.lng], {
+        icon: L.divIcon({
+          html: `<div style="
+            background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+            color: white;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            border: 2px solid white;
+          ">🔥</div>`,
+          className: 'hotspot-marker',
+          iconSize: [40, 40],
+          iconAnchor: [20, 20],
+          popupAnchor: [0, -10]
+        })
+      })
+        .bindPopup(`
+          <div style="font-size: 12px; min-width: 250px; max-height: 300px; overflow-y: auto;">
+            <strong style="font-size: 14px;">🔥 Hotspot #${hotspotId}</strong><br/>
+            <span style="color: #666; font-size: 13px;">${issueCount} Issues Detected</span><br/>
+            <hr style="margin: 8px 0; border: none; border-top: 1px solid #ddd;"/>
+            <strong style="font-size: 12px;">Issues in this area:</strong><br/>
+            <ul style="margin: 8px 0; padding-left: 20px; font-size: 11px;">
+              ${issues.slice(0, 5).map(issue => `
+                <li style="margin-bottom: 4px;">
+                  <strong>#${issue.id}</strong> - ${issue.category}<br/>
+                  <span style="color: #999;">${issue.description.substring(0, 40)}...</span>
+                </li>
+              `).join('')}
+              ${issues.length > 5 ? `<li style="color: #999; font-style: italic;">+${issues.length - 5} more...</li>` : ''}
+            </ul>
+          </div>
+        `)
+        .addTo(hotspotsLayerGroup.current);
+
+      // Add issue pins within hotspot
+      issues.forEach((issue) => {
+        L.marker([parseFloat(issue.location_lat), parseFloat(issue.location_lng)], {
+          icon: L.divIcon({
+            html: `<div style="
+              background: white;
+              border: 3px solid #ff6b6b;
+              border-radius: 50%;
+              width: 20px;
+              height: 20px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 10px;
+            ">${issue.priority_score}</div>`,
+            className: 'issue-marker',
+            iconSize: [20, 20],
+            iconAnchor: [10, 10],
+            popupAnchor: [0, -10]
+          })
+        })
+          .bindPopup(`
+            <div style="font-size: 11px; width: 200px;">
+              <strong>#${issue.id} - ${issue.category}</strong><br/>
+              <span>${issue.description.substring(0, 60)}...</span><br/>
+              <span style="color: #999;">Priority: ${issue.priority_score}/10</span>
+            </div>
+          `)
+          .addTo(hotspotsLayerGroup.current);
+      });
+    });
+
+    // Fit all hotspots in view
+    if (hotspots.length > 0) {
+      const bounds = L.latLngBounds(
+        hotspots.map(h => [h.center.lat, h.center.lng])
+      );
+      mapInstance.current.fitBounds(bounds, { padding: [50, 50] });
+    }
+  }, [hotspots]);
+
+  useEffect(() => {
+    if (showHotspots && mapRef.current) {
+      initializeMap();
+    }
+  }, [showHotspots, initializeMap]);
+
   const getPriorityColor = (score) => {
     if (score >= 7) return '#dc3545';
     if (score >= 4) return '#ffc107';
@@ -194,6 +354,9 @@ function AdminDashboard() {
               </button>
             <button onClick={() => navigate('/admin/analytics')} className="glass-button glass-button-primary">
               ◈ Advanced Analytics
+            </button>
+            <button onClick={fetchHotspots} disabled={loadingHotspots} className="glass-button glass-button-primary">
+              {loadingHotspots ? '↻ Loading...' : 'Geographic Hotspots'}
             </button>
             </div>
           )}
@@ -234,6 +397,46 @@ function AdminDashboard() {
           ) : (
             <p style={{ color: '#666' }}>Click "Refresh Analysis" to generate insights.</p>
           )}
+        </div>
+      )}
+
+      {/* HOTSPOT DETECTION MAP */}
+      {showHotspots && userRole === 'admin' && (
+        <div className="hotspot-section glass-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+            <h3 style={{ margin: 0, color: '#ff6b6b' }}>🔥 Geographic Hotspot Analysis</h3>
+            <button 
+              onClick={() => setShowHotspots(false)} 
+              style={{ background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer' }}
+            >
+              ✕
+            </button>
+          </div>
+          
+          <div style={{ marginBottom: '10px', fontSize: '13px', color: '#666' }}>
+            <strong>{hotspots.length}</strong> hotspots detected with <strong>{hotspots.reduce((sum, h) => sum + h.issueCount, 0)}</strong> clustered issues
+          </div>
+
+          <div 
+            ref={mapRef} 
+            style={{
+              width: '100%',
+              height: '500px',
+              borderRadius: '12px',
+              border: '1px solid rgba(255, 107, 107, 0.2)',
+              overflow: 'hidden'
+            }}
+          />
+
+          <div style={{ marginTop: '15px', padding: '15px', background: 'rgba(255, 107, 107, 0.05)', borderRadius: '8px' }}>
+            <strong style={{ color: '#ff6b6b', fontSize: '13px' }}>ℹ️ How to interpret:</strong>
+            <ul style={{ margin: '8px 0 0 20px', fontSize: '12px', color: '#666' }}>
+              <li>🔴 <strong>Red circles</strong> = Geographic hotspots (ε=500m, minPts=3)</li>
+              <li>🔥 <strong>Flame markers</strong> = Hotspot center point</li>
+              <li>🔵 <strong>Small numbered circles</strong> = Individual issues (number = priority score)</li>
+              <li><strong>Darker red</strong> = More issues in that area</li>
+            </ul>
+          </div>
         </div>
       )}
 
@@ -299,7 +502,12 @@ function AdminDashboard() {
                   <span className="admin-badge" style={{ backgroundColor: getPriorityColor(issue.priority_score) }}>
                     Priority: {issue.priority_score}/10
                   </span>
-                  <span className="admin-badge" style={{ backgroundColor: '#6c757d' }}>{issue.status}</span>
+                  <span 
+                    className="admin-badge admin-status-badge" 
+                    data-status={issue.status}
+                  >
+                    {issue.status === 'Pending' ? '→' : issue.status === 'In Progress' ? '◆' : '✓'} {issue.status}
+                  </span>
                 </div>
               </div>
               

@@ -2,7 +2,136 @@ const Issue = require('../models/Issue');
 const priorityService = require('../services/priorityService');
 const departmentService = require('../services/departmentService');
 const emailService = require('../services/emailService');
-const pool = require('../config/database'); 
+const duplicateDetectionService = require('../services/duplicateDetectionService');
+const pool = require('../config/database');
+
+// Chennai areas dictionary for smart geocoding
+const CHENNAI_AREAS = {
+  'vadapalani': { lat: 13.0500, lng: 80.2121 },
+  'anna nagar': { lat: 13.0850, lng: 80.2101 },
+  'velachery':  { lat: 12.9774, lng: 80.2221 },
+  't nagar':    { lat: 13.0418, lng: 80.2341 },
+  'tambaram':   { lat: 12.9249, lng: 80.1000 },
+  'adyar':      { lat: 13.0012, lng: 80.2565 },
+  'pallavaram': { lat: 12.9675, lng: 80.1491 },
+  'mylapore':   { lat: 13.0368, lng: 80.2676 },
+  'nungambakkam': { lat: 13.0604, lng: 80.2426 },
+  'besant nagar': { lat: 12.9879, lng: 80.2697 },
+  'sholinganallur': { lat: 12.9010, lng: 80.2279 },
+  'porur': { lat: 13.0463, lng: 80.1624 },
+  'ambattur': { lat: 13.1060, lng: 80.1550 },
+  'perungudi': { lat: 12.9712, lng: 80.2403 },
+  'guindy': { lat: 13.0060, lng: 80.2260 },
+  'triplicane': { lat: 13.0460, lng: 80.2680 },
+  'egmore': { lat: 13.0710, lng: 80.2590 },
+  'nanganallur': { lat: 12.9807, lng: 80.1882 },
+  'meenambakkam': { lat: 12.9895, lng: 80.1863 },
+  'chrompet': { lat: 12.9470, lng: 80.1450 },
+  'selaiyur': { lat: 12.9068, lng: 80.1425 },
+  'perungalathur': { lat: 12.9048, lng: 80.0889 },
+  'medavakkam': { lat: 12.9171, lng: 80.1923 },
+  'iadbakkam': { lat: 12.9880, lng: 80.2047 },
+  'alandur': { lat: 12.9975, lng: 80.2006 },
+  'pammal': { lat: 12.9749, lng: 80.1328 },
+  'pazhavanthangal': { lat: 12.9895, lng: 80.1863 },
+  'st thomas mount': { lat: 12.9950, lng: 80.1890 },
+  'mudichur': { lat: 12.9102, lng: 80.0717 },
+  'gerugambakkam': { lat: 13.0136, lng: 80.1353 },
+  'manapakkam': { lat: 13.0213, lng: 80.1832 }
+};
+
+const CATEGORY_MAP = {
+  'road': 'Road Maintenance',
+  'Road Maintenance': 'Road Maintenance',
+  'garbage': 'Garbage Collection',
+  'Garbage': 'Garbage Collection',
+  'Garbage Collection': 'Garbage Collection',
+  'streetlight': 'Streetlight',
+  'Streetlight': 'Streetlight',
+  'water': 'Water Supply',
+  'Water Supply': 'Water Supply',
+  'drainage': 'Drainage',
+  'Drainage': 'Drainage',
+  'Public Health': 'Public Health'
+};
+
+// Helper function to get coordinates from address
+function getCoordinatesFromAddress(location_address, location_lat, location_lng) {
+  let finalLat = location_lat || 13.0827; // Default Chennai
+  let finalLng = location_lng || 80.2707; // Default Chennai
+
+  if (location_address) {
+    const userAddress = location_address.toLowerCase();
+    for (const [area, coords] of Object.entries(CHENNAI_AREAS)) {
+      if (userAddress.includes(area)) {
+        finalLat = coords.lat;
+        finalLng = coords.lng;
+        console.log(`📍 Smart Geocoding Match: Found '${area}', setting coords to ${finalLat}, ${finalLng}`);
+        break;
+      }
+    }
+  }
+
+  return { finalLat, finalLng };
+}
+
+// CHECK DUPLICATES ENDPOINT - Without creating issue
+exports.checkDuplicates = async (req, res) => {
+  try {
+    console.log('=== CHECK DUPLICATES START ===');
+    const { description, category, location_address, location_lat, location_lng } = req.body;
+
+    if (!description || !category) {
+      return res.status(400).json({
+        success: false,
+        error: 'Description and category are required'
+      });
+    }
+
+    // Normalize category
+    const normalizedCategory = CATEGORY_MAP[category] || category;
+    console.log(`Category normalized: "${category}" → "${normalizedCategory}"`);
+
+    // Get coordinates
+    const { finalLat, finalLng } = getCoordinatesFromAddress(location_address, location_lat, location_lng);
+
+    // Check for duplicates
+    let duplicateDetection = null;
+    try {
+      duplicateDetection = await duplicateDetectionService.combinedDuplicateScore({
+        location_lat: finalLat,
+        location_lng: finalLng,
+        category: normalizedCategory,
+        description
+      });
+      console.log('🔍 Duplicate detection result:', duplicateDetection);
+    } catch (dupError) {
+      console.error('⚠️ Duplicate detection failed:', dupError.message);
+      duplicateDetection = { isDuplicate: false, confidence: 0, candidates: [] };
+    }
+
+    console.log('=== CHECK DUPLICATES END ===');
+
+    res.json({
+      success: true,
+      duplicateDetection: {
+        isDuplicate: duplicateDetection.isDuplicate,
+        confidence: duplicateDetection.confidence,
+        message: duplicateDetection.isDuplicate 
+          ? `⚠️ Possible duplicate found (${duplicateDetection.confidence}% confidence). Consider upvoting instead of creating a new issue.`
+          : 'No duplicates detected',
+        candidates: duplicateDetection.candidates.slice(0, 3) // Top 3 candidates
+      }
+    });
+  } catch (error) {
+    console.error('=== CHECK DUPLICATES ERROR ===');
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to check duplicates'
+    });
+  }
+};
 
 exports.createIssue = async (req, res) => {
   try {
@@ -30,20 +159,7 @@ exports.createIssue = async (req, res) => {
     }
 
     // === 1. NORMALIZE CATEGORY ===
-    const categoryMap = {
-      'road': 'Road Maintenance',
-      'Road Maintenance': 'Road Maintenance',
-      'garbage': 'Garbage Collection',
-      'Garbage': 'Garbage Collection',
-      'Garbage Collection': 'Garbage Collection',
-      'streetlight': 'Streetlight',
-      'Streetlight': 'Streetlight',
-      'water': 'Water Supply',
-      'Water Supply': 'Water Supply',
-      'drainage': 'Drainage',
-      'Drainage': 'Drainage',
-      'Public Health': 'Public Health'
-    };
+    const categoryMap = CATEGORY_MAP;
     
     const normalizedCategory = categoryMap[category] || category;
     console.log(`Category normalized: "${category}" → "${normalizedCategory}"`);
@@ -92,59 +208,7 @@ exports.createIssue = async (req, res) => {
     console.log('Final Priority Label:', priorityLabel);
 
     // === 5. SMART GEOCODING (CHENNAI AREA DICTIONARY) ===
-    const chennaiAreas = {
-      'vadapalani': { lat: 13.0500, lng: 80.2121 },
-      'anna nagar': { lat: 13.0850, lng: 80.2101 },
-      'velachery':  { lat: 12.9774, lng: 80.2221 },
-      't nagar':    { lat: 13.0418, lng: 80.2341 },
-      'tambaram':   { lat: 12.9249, lng: 80.1000 },
-      'adyar':      { lat: 13.0012, lng: 80.2565 },
-      'pallavaram': { lat: 12.9675, lng: 80.1491 },
-      'mylapore':   { lat: 13.0368, lng: 80.2676 },
-      'mylapore': { lat: 13.0368, lng: 80.2676 },
-  'nungambakkam': { lat: 13.0604, lng: 80.2426 },
-  'besant nagar': { lat: 12.9879, lng: 80.2697 },
-  'sholinganallur': { lat: 12.9010, lng: 80.2279 },
-  'porur': { lat: 13.0463, lng: 80.1624 },
-  'ambattur': { lat: 13.1060, lng: 80.1550 },
-  'perungudi': { lat: 12.9712, lng: 80.2403 },
-  'guindy': { lat: 13.0060, lng: 80.2260 },
-  'triplicane': { lat: 13.0460, lng: 80.2680 },
-  'egmore': { lat: 13.0710, lng: 80.2590 },
-'nanganallur': { lat: 12.9807, lng: 80.1882 },
-  'meenambakkam': { lat: 12.9895, lng: 80.1863 },
-  'chrompet': { lat: 12.9470, lng: 80.1450 },
-  'pallavaram': { lat: 12.9675, lng: 80.1491 },
-  'selaiyur': { lat: 12.9068, lng: 80.1425 },
-  'perungalathur': { lat: 12.9048, lng: 80.0889 },
-  'tambaram': { lat: 12.9249, lng: 80.1000 },
-  'medavakkam': { lat: 12.9171, lng: 80.1923 },
-  'sholinganallur': { lat: 12.9010, lng: 80.2279 },
-  'porur': { lat: 13.0382, lng: 80.1565 },
-  'iadbakkam': { lat: 12.9880, lng: 80.2047 },
-  'alandur': { lat: 12.9975, lng: 80.2006 },
-  'pammal': { lat: 12.9749, lng: 80.1328 },
-  'pazhavanthangal': { lat: 12.9895, lng: 80.1863 },
-  'st thomas mount': { lat: 12.9950, lng: 80.1890 },
-  'mudichur': { lat: 12.9102, lng: 80.0717 },
-  'gerugambakkam': { lat: 13.0136, lng: 80.1353 },
-  'manapakkam': { lat: 13.0213, lng: 80.1832 }
-    };
-
-    let finalLat = location_lat || 13.0827; // Default Chennai
-    let finalLng = location_lng || 80.2707; // Default Chennai
-
-    if (location_address) {
-      const userAddress = location_address.toLowerCase();
-      for (const [area, coords] of Object.entries(chennaiAreas)) {
-        if (userAddress.includes(area)) {
-          finalLat = coords.lat;
-          finalLng = coords.lng;
-          console.log(`📍 Smart Geocoding Match: Found '${area}', setting coords to ${finalLat}, ${finalLng}`);
-          break; // Stop looking once we find a match
-        }
-      }
-    }
+    const { finalLat, finalLng } = getCoordinatesFromAddress(location_address, location_lat, location_lng);
 
     // === 6. PREPARE DATA FOR DB ===
     const issueData = {
@@ -161,7 +225,22 @@ exports.createIssue = async (req, res) => {
       severity: severity || 'Normal'
     };
 
-    // === 6. SAVE TO DATABASE ===
+    // === 6.5 CHECK FOR DUPLICATE ISSUES (TF-IDF + Geographic) ===
+    let duplicateDetection = null;
+    try {
+      duplicateDetection = await duplicateDetectionService.combinedDuplicateScore({
+        location_lat: finalLat,
+        location_lng: finalLng,
+        category: normalizedCategory,
+        description
+      });
+      console.log('🔍 Duplicate detection result:', duplicateDetection);
+    } catch (dupError) {
+      console.error('⚠️ Duplicate detection failed (non-blocking):', dupError.message);
+      duplicateDetection = { isDuplicate: false, confidence: 0, candidates: [] };
+    }
+
+    // === 7. SAVE TO DATABASE ===
     const issue = await Issue.create(issueData);
     console.log('Issue created successfully:', issue.id);
 
@@ -204,7 +283,15 @@ try {
       },
       emailSent: !!emailResult,
       emailTo: department?.email || 'N/A',
-      priorityLevel: priorityLabel
+      priorityLevel: priorityLabel,
+      duplicateDetection: {
+        isDuplicate: duplicateDetection.isDuplicate,
+        confidence: duplicateDetection.confidence,
+        message: duplicateDetection.isDuplicate 
+          ? `⚠️ Possible duplicate found (${duplicateDetection.confidence}% confidence). Please review before proceeding.`
+          : 'No duplicates detected',
+        candidates: duplicateDetection.candidates.slice(0, 3) // Top 3 candidates
+      }
     });
 
   } catch (error) {
