@@ -20,7 +20,6 @@ function ChatIssuePage() {
   
   // Duplicate Detection State
   const [duplicateWarning, setDuplicateWarning] = useState(null);
-  const [confirmSubmit, setConfirmSubmit] = useState(false);
   const [pendingSubmitPayload, setPendingSubmitPayload] = useState(null);
   
   const messagesEndRef = useRef(null);
@@ -161,7 +160,6 @@ function ChatIssuePage() {
         setIssueData(null);
         setImageUrl('');
         setDuplicateWarning(null);
-        setConfirmSubmit(false);
         navigate('/');
       } else {
         showError('Failed to submit issue: ' + (createResponse.data.error || 'Unknown error'));
@@ -185,7 +183,6 @@ function ChatIssuePage() {
         setIssueData(null);
         setImageUrl('');
         setDuplicateWarning(null);
-        setConfirmSubmit(false);
         navigate('/');
       } else {
         showError('Failed to submit issue');
