@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const { recalculatePriorityScore } = require('./issueController');
 
 // Upvote an issue
 exports.upvoteIssue = async (req, res) => {
@@ -20,13 +21,8 @@ exports.upvoteIssue = async (req, res) => {
     // 3. Increment vote_count in issues table
     await pool.query('UPDATE issues SET vote_count = vote_count + 1 WHERE id = $1', [issueId]);
     
-    // 4. Dynamically Increase Priority Score (Max 10)
-    // Every 5 votes adds +1 to priority
-    await pool.query(`
-      UPDATE issues 
-      SET priority_score = LEAST(10, priority_score + CASE WHEN vote_count % 5 = 0 THEN 1 ELSE 0 END)
-      WHERE id = $1
-    `, [issueId]);
+    // 4. Recalculate priority score and label based on new vote count
+    await recalculatePriorityScore(issueId);
     
     res.json({ success: true, message: 'Vote added successfully' });
     
@@ -50,6 +46,9 @@ exports.removeVote = async (req, res) => {
     
     // Decrement vote count (prevent negative numbers)
     await pool.query('UPDATE issues SET vote_count = GREATEST(vote_count - 1, 0) WHERE id = $1', [issueId]);
+    
+    // Recalculate priority score and label after vote removal
+    await recalculatePriorityScore(issueId);
     
     res.json({ success: true, message: 'Vote removed' });
     

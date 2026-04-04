@@ -13,16 +13,17 @@ class Issue {
         locationAddress, 
         imageUrl,
         priorityScore,
+        priorityLabel,
         departmentId, // <--- 1. NEW INPUT
         severity
       } = issueData;
       
-      // 2. UPDATED QUERY: Added department_id
+      // 2. UPDATED QUERY: Added department_id and priority_label
       const query = `
         INSERT INTO issues 
         (user_id, title, description, category, location_lat, location_lng, 
-         location_address, image_url, priority_score, department_id, vote_count, status)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+         location_address, image_url, priority_score, priority_label, department_id, vote_count, status)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
         RETURNING *
       `;
       
@@ -36,9 +37,10 @@ class Issue {
         locationAddress || 'Location not specified',
         imageUrl || null,
         priorityScore || 5,
-        departmentId || null, // <--- 3. NEW VALUE (Matches $10)
-        0, // vote_count ($11)
-        'Pending' // status ($12)
+        priorityLabel || 'LOW',
+        departmentId || null, // <--- 3. NEW VALUE (Matches $11)
+        0, // vote_count ($12)
+        'Pending' // status ($13)
       ];
       
       console.log('Creating issue with values:', values);

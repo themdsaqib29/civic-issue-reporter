@@ -75,6 +75,84 @@ function getCoordinatesFromAddress(location_address, location_lat, location_lng)
   return { finalLat, finalLng };
 }
 
+// Helper function to get unresolved issue count for a location/category
+async function getUnresolvedCount(category, location_address) {
+  try {
+    const query = `
+      SELECT COUNT(*) as count
+      FROM issues
+      WHERE category = $1
+        AND status != 'Resolved'
+        AND status != 'Closed'
+        AND location_address ILIKE $2
+    `;
+    const result = await pool.query(query, [category, `%${location_address}%`]);
+    return parseInt(result.rows[0].count) || 0;
+  } catch (error) {
+    console.error('⚠️ Failed to fetch unresolvedCount:', error.message);
+    return 0; // Fallback to 0 on error
+  }
+}
+
+// Helper function to recalculate priority score and label based on current votes and conditions
+async function recalculatePriorityScore(issueId, severity = 'Normal') {
+  try {
+    // Fetch current issue data
+    const issueQuery = 'SELECT vote_count, category, description, location_address FROM issues WHERE id = $1';
+    const issueResult = await pool.query(issueQuery, [issueId]);
+    
+    if (issueResult.rows.length === 0) {
+      console.error('Issue not found for recalculation:', issueId);
+      return;
+    }
+
+    const issue = issueResult.rows[0];
+    const voteCount = issue.vote_count || 0;
+
+    // Recalculate priority score considering votes
+    let sentimentScore = 0.5;
+    if (severity.toLowerCase().includes('high')) sentimentScore = 0.8;
+    if (severity.toLowerCase().includes('low')) sentimentScore = 0.2;
+
+    // Get unresolved count from DB
+    const unresolvedCount = await getUnresolvedCount(issue.category, issue.location_address);
+
+    const priorityScore = priorityService.calculatePriority(
+      {
+        category: issue.category,
+        description: issue.description,
+        sentimentScore
+      },
+      { unresolvedCount },
+      voteCount
+    );
+
+    console.log(`📊 Recalculated priority for #${issueId}: score=${priorityScore}, votes=${voteCount}`);
+
+    // Derive priority label based on score
+    let priorityLabel = 'LOW';
+    if (priorityScore >= 4) priorityLabel = 'MEDIUM';
+    if (priorityScore >= 7) priorityLabel = 'HIGH';
+
+    // Vote-based escalation (NOW WORKS because votes are included)
+    if (priorityLabel === 'MEDIUM' && voteCount >= 10) priorityLabel = 'HIGH';
+    if (priorityLabel === 'HIGH' && voteCount >= 20) priorityLabel = 'URGENT';
+
+    // Severity override
+    if (severity.toLowerCase().includes('high')) {
+      if (priorityLabel === 'HIGH') priorityLabel = 'URGENT';
+    }
+
+    // Update database with new priority score and label
+    const updateQuery = 'UPDATE issues SET priority_score = $1, priority_label = $2 WHERE id = $3';
+    await pool.query(updateQuery, [priorityScore, priorityLabel, issueId]);
+
+    console.log(`✅ Priority label updated for #${issueId}: ${priorityLabel}`);
+  } catch (error) {
+    console.error('⚠️ Failed to recalculate priority:', error.message);
+  }
+}
+
 // CHECK DUPLICATES ENDPOINT - Without creating issue
 exports.checkDuplicates = async (req, res) => {
   try {
@@ -176,29 +254,28 @@ exports.createIssue = async (req, res) => {
     if (severity && severity.toLowerCase().includes('high')) sentimentScore = 0.8;
     if (severity && severity.toLowerCase().includes('low')) sentimentScore = 0.2;
 
+    // Fetch unresolved issue count for this location/category from database
+    const unresolvedCount = await getUnresolvedCount(normalizedCategory, location_address || 'Chennai');
+    console.log(`📊 Unresolved issues in area: ${unresolvedCount}`);
+
     const priorityScore = priorityService.calculatePriority(
       {
         category: normalizedCategory,
         description,
         sentimentScore
       },
-      { unresolvedCount: 0 },
-      0
+      { unresolvedCount },
+      0 // No votes at creation time
     );
 
     console.log('Priority Score:', priorityScore);
 
     // === 4. DERIVE PRIORITY LABEL (BUSINESS RULES) ===
-   // === 4. DERIVE PRIORITY LABEL (BUSINESS RULES) ===
-    const communityVotes = 0; // SAFE DEFAULT (voting not implemented yet)
-
+    // At creation time, communityvotes = 0, so vote-based escalation doesn't apply
+    // Vote escalation will happen later when users vote (via voteController)
     let priorityLabel = 'LOW';
     if (priorityScore >= 4) priorityLabel = 'MEDIUM';
     if (priorityScore >= 7) priorityLabel = 'HIGH';
-
-    // Vote-based escalation
-    if (priorityLabel === 'MEDIUM' && communityVotes >= 10) priorityLabel = 'HIGH';
-    if (priorityLabel === 'HIGH' && communityVotes >= 20) priorityLabel = 'URGENT';
 
     // Severity override
     if (severity && severity.toLowerCase().includes('high')) {
@@ -221,6 +298,7 @@ exports.createIssue = async (req, res) => {
       locationAddress: location_address || 'Location not specified',
       imageUrl: image_url || null,
       priorityScore,
+      priorityLabel, // Now included from calculated label
       departmentId: department ? department.id : null,
       severity: severity || 'Normal'
     };
@@ -607,6 +685,9 @@ exports.getMyIssues = async (req, res) => {
 };
 // Alias for chat
 exports.reportIssue = exports.createIssue;
+
+// Export helper function for vote controller to recalculate priority when votes change
+exports.recalculatePriorityScore = recalculatePriorityScore;
 
 // Get public analytics data for unauthenticated users (login page)
 exports.getPublicAnalytics = async (req, res) => {
