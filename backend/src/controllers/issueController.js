@@ -144,10 +144,10 @@ async function recalculatePriorityScore(issueId, severity = 'Normal') {
     }
 
     // Update database with new priority score and label
-    const updateQuery = 'UPDATE issues SET priority_score = $1, priority_label = $2 WHERE id = $3';
-    await pool.query(updateQuery, [priorityScore, priorityLabel, issueId]);
+    const updateQuery = 'UPDATE issues SET priority_score = $1 WHERE id = $2';
+    await pool.query(updateQuery, [priorityScore, issueId]);
 
-    console.log(`✅ Priority label updated for #${issueId}: ${priorityLabel}`);
+    console.log(`✅ Priority label updated for #${issueId}: ${priorityScore}`);
   } catch (error) {
     console.error('⚠️ Failed to recalculate priority:', error.message);
   }
@@ -297,8 +297,7 @@ exports.createIssue = async (req, res) => {
       locationLng: finalLng, // Use the smart coordinates
       locationAddress: location_address || 'Location not specified',
       imageUrl: image_url || null,
-      priorityScore,
-      priorityLabel, // Now included from calculated label
+      priorityScore, // Now included from calculated label
       departmentId: department ? department.id : null,
       severity: severity || 'Normal'
     };

@@ -13,7 +13,6 @@ class Issue {
         locationAddress, 
         imageUrl,
         priorityScore,
-        priorityLabel,
         departmentId, // <--- 1. NEW INPUT
         severity
       } = issueData;
@@ -22,8 +21,8 @@ class Issue {
       const query = `
         INSERT INTO issues 
         (user_id, title, description, category, location_lat, location_lng, 
-         location_address, image_url, priority_score, priority_label, department_id, vote_count, status)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+         location_address, image_url, priority_score, department_id, vote_count, status)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
         RETURNING *
       `;
       
@@ -37,7 +36,6 @@ class Issue {
         locationAddress || 'Location not specified',
         imageUrl || null,
         priorityScore || 5,
-        priorityLabel || 'LOW',
         departmentId || null, // <--- 3. NEW VALUE (Matches $11)
         0, // vote_count ($12)
         'Pending' // status ($13)
