@@ -1,0 +1,308 @@
+<mxfile host="app.diagrams.net" modified="2026-04-05T10:57:47.064Z" agent="draw.io" version="21.0.0" type="device">
+  <diagram name="Civic Issue Reporter Architecture" id="civic-arch">
+    <mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ==================== TITLE ==================== -->
+        <mxCell id="title" value="CIVIC ISSUE REPORTER — SYSTEM ARCHITECTURE"
+          style="text;html=1;strokeColor=#1a365d;fillColor=#1a365d;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontColor=#FFFFFF;fontSize=18;fontStyle=1;"
+          vertex="1" parent="1">
+          <mxGeometry x="10" y="10" width="1620" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== USER LAYER ==================== -->
+        <mxCell id="ul" value="USER LAYER"
+          style="swimlane;fontStyle=1;startSize=30;fillColor=#E3F2FD;strokeColor=#1565C0;fontColor=#1565C0;fontSize=13;swimlaneLine=1;rounded=1;"
+          vertex="1" parent="1">
+          <mxGeometry x="10" y="80" width="1100" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="u1" value="&lt;b&gt;&#x1F464; Citizens&lt;/b&gt;&lt;br&gt;Submit and Track Issues"
+          style="rounded=1;fillColor=#BBDEFB;strokeColor=#1565C0;fontColor=#0D47A1;fontSize=11;align=center;verticalAlign=middle;html=1;"
+          vertex="1" parent="ul">
+          <mxGeometry x="50" y="30" width="185" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="u2" value="&lt;b&gt;&#x1F3E2; Department Admin&lt;/b&gt;&lt;br&gt;Manage Department Issues"
+          style="rounded=1;fillColor=#BBDEFB;strokeColor=#1565C0;fontColor=#0D47A1;fontSize=11;align=center;verticalAlign=middle;html=1;"
+          vertex="1" parent="ul">
+          <mxGeometry x="285" y="30" width="210" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="u3" value="&lt;b&gt;&#x1F451; Main Admin&lt;/b&gt;&lt;br&gt;Full System Control"
+          style="rounded=1;fillColor=#BBDEFB;strokeColor=#1565C0;fontColor=#0D47A1;fontSize=11;align=center;verticalAlign=middle;html=1;"
+          vertex="1" parent="ul">
+          <mxGeometry x="545" y="30" width="185" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== PRESENTATION LAYER ==================== -->
+        <mxCell id="pl" value="PRESENTATION LAYER (React.js Frontend)"
+          style="swimlane;fontStyle=1;startSize=30;fillColor=#F3E5F5;strokeColor=#6A1B9A;fontColor=#6A1B9A;fontSize=13;rounded=1;"
+          vertex="1" parent="1">
+          <mxGeometry x="10" y="210" width="1100" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="p1" value="&lt;b&gt;&#x1F4CB; Issue Submission &amp;amp; Tracking&lt;/b&gt;&lt;br&gt;Chat Form + Status Updates"
+          style="rounded=1;fillColor=#CE93D8;strokeColor=#6A1B9A;fontColor=#4A148C;fontSize=11;align=center;verticalAlign=middle;html=1;"
+          vertex="1" parent="pl">
+          <mxGeometry x="30" y="30" width="250" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="p2" value="&lt;b&gt;&#x1F4CA; Admin Dashboard &amp;amp; Analytics&lt;/b&gt;&lt;br&gt;Reports, Charts and Issue Management"
+          style="rounded=1;fillColor=#CE93D8;strokeColor=#6A1B9A;fontColor=#4A148C;fontSize=11;align=center;verticalAlign=middle;html=1;"
+          vertex="1" parent="pl">
+          <mxGeometry x="320" y="30" width="260" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="p3" value="&lt;b&gt;&#x1F5FA;&#xFE0F; Heatmap &amp;amp; Geographic Visualization&lt;/b&gt;&lt;br&gt;Interactive Issue Maps"
+          style="rounded=1;fillColor=#CE93D8;strokeColor=#6A1B9A;fontColor=#4A148C;fontSize=11;align=center;verticalAlign=middle;html=1;"
+          vertex="1" parent="pl">
+          <mxGeometry x="625" y="30" width="265" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== APPLICATION / API LAYER ==================== -->
+        <mxCell id="al" value="APPLICATION / API LAYER (Node.js + Express Backend)"
+          style="swimlane;fontStyle=1;startSize=30;fillColor=#FFF3E0;strokeColor=#E65100;fontColor=#E65100;fontSize=13;rounded=1;"
+          vertex="1" parent="1">
+          <mxGeometry x="10" y="340" width="1100" height="230" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a1" value="&lt;b&gt;&#x1F4AC; Chat Interface&lt;/b&gt;&lt;br&gt;Conversational Issue Submission"
+          style="rounded=1;fillColor=#FFB74D;strokeColor=#E65100;fontColor=#BF360C;fontSize=10;align=center;verticalAlign=middle;html=1;"
+          vertex="1" parent="al">
+          <mxGeometry x="20" y="40" width="185" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a2" value="&lt;b&gt;&#x1F916; NLP Categorization&lt;/b&gt;&lt;br&gt;Auto-classify Issues by Type"
+          style="rounded=1;fillColor=#FFB74D;strokeColor=#E65100;fontColor=#BF360C;fontSize=10;align=center;verticalAlign=middle;html=1;"
+          vertex="1" parent="al">
+          <mxGeometry x="220" y="40" width="185" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a3" value="&lt;b&gt;&#x26A1; Priority Scoring Algorithm&lt;/b&gt;&lt;br&gt;AI-based Issue Prioritization"
+          style="rounded=1;fillColor=#FFB74D;strokeColor=#E65100;fontColor=#BF360C;fontSize=10;align=center;verticalAlign=middle;html=1;"
+          vertex="1" parent="al">
+          <mxGeometry x="420" y="40" width="185" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a4" value="&lt;b&gt;&#x1F3DB;&#xFE0F; Department Routing&lt;/b&gt;&lt;br&gt;Smart Issue Assignment"
+          style="rounded=1;fillColor=#FFB74D;strokeColor=#E65100;fontColor=#BF360C;fontSize=10;align=center;verticalAlign=middle;html=1;"
+          vertex="1" parent="al">
+          <mxGeometry x="620" y="40" width="185" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a5" value="&lt;b&gt;&#x1F50D; AI Insights Engine&lt;/b&gt;&lt;br&gt;Trends, Patterns and Analytics"
+          style="rounded=1;fillColor=#FFB74D;strokeColor=#E65100;fontColor=#BF360C;fontSize=10;align=center;verticalAlign=middle;html=1;"
+          vertex="1" parent="al">
+          <mxGeometry x="820" y="40" width="185" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a6" value="&lt;b&gt;&#x1F5FA;&#xFE0F; Hotspot Detection&lt;/b&gt;&lt;br&gt;Geographic Issue Clustering"
+          style="rounded=1;fillColor=#FFB74D;strokeColor=#E65100;fontColor=#BF360C;fontSize=10;align=center;verticalAlign=middle;html=1;"
+          vertex="1" parent="al">
+          <mxGeometry x="20" y="135" width="185" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a7" value="&lt;b&gt;&#x1F4E7; Email Management&lt;/b&gt;&lt;br&gt;Notifications and Status Alerts"
+          style="rounded=1;fillColor=#FFB74D;strokeColor=#E65100;fontColor=#BF360C;fontSize=10;align=center;verticalAlign=middle;html=1;"
+          vertex="1" parent="al">
+          <mxGeometry x="220" y="135" width="185" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a8" value="&lt;b&gt;&#x1F512; Auth Middleware&lt;/b&gt;&lt;br&gt;JWT Verification + CORS"
+          style="rounded=1;fillColor=#FFE0B2;strokeColor=#E65100;fontColor=#BF360C;fontSize=10;align=center;verticalAlign=middle;html=1;"
+          vertex="1" parent="al">
+          <mxGeometry x="420" y="135" width="185" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="a9" value="&lt;b&gt;&#x1F5F3;&#xFE0F; Voting &amp;amp; Duplicate Detection&lt;/b&gt;&lt;br&gt;Community Engagement"
+          style="rounded=1;fillColor=#FFE0B2;strokeColor=#E65100;fontColor=#BF360C;fontSize=10;align=center;verticalAlign=middle;html=1;"
+          vertex="1" parent="al">
+          <mxGeometry x="620" y="135" width="185" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== DATA LAYER ==================== -->
+        <mxCell id="dl" value="DATA LAYER (PostgreSQL Database)"
+          style="swimlane;fontStyle=1;startSize=30;fillColor=#E8F5E9;strokeColor=#2E7D32;fontColor=#2E7D32;fontSize=13;rounded=1;"
+          vertex="1" parent="1">
+          <mxGeometry x="10" y="590" width="1100" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="d1" value="&lt;b&gt;&#x1F465; Users&lt;/b&gt;&lt;br&gt;Database"
+          style="shape=cylinder3;fillColor=#A5D6A7;strokeColor=#2E7D32;fontColor=#1B5E20;fontSize=11;align=center;verticalAlign=middle;whiteSpace=wrap;html=1;"
+          vertex="1" parent="dl">
+          <mxGeometry x="30" y="22" width="170" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="d2" value="&lt;b&gt;&#x1F4DD; Issues&lt;/b&gt;&lt;br&gt;Database"
+          style="shape=cylinder3;fillColor=#A5D6A7;strokeColor=#2E7D32;fontColor=#1B5E20;fontSize=11;align=center;verticalAlign=middle;whiteSpace=wrap;html=1;"
+          vertex="1" parent="dl">
+          <mxGeometry x="240" y="22" width="170" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="d3" value="&lt;b&gt;&#x1F3DB;&#xFE0F; Departments&lt;/b&gt;&lt;br&gt;Database"
+          style="shape=cylinder3;fillColor=#A5D6A7;strokeColor=#2E7D32;fontColor=#1B5E20;fontSize=11;align=center;verticalAlign=middle;whiteSpace=wrap;html=1;"
+          vertex="1" parent="dl">
+          <mxGeometry x="450" y="22" width="170" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="d4" value="&lt;b&gt;&#x1F504; Follow-ups&lt;/b&gt;&lt;br&gt;Database"
+          style="shape=cylinder3;fillColor=#A5D6A7;strokeColor=#2E7D32;fontColor=#1B5E20;fontSize=11;align=center;verticalAlign=middle;whiteSpace=wrap;html=1;"
+          vertex="1" parent="dl">
+          <mxGeometry x="660" y="22" width="170" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== EXTERNAL SERVICES ==================== -->
+        <mxCell id="es" value="EXTERNAL SERVICES"
+          style="swimlane;fontStyle=1;startSize=30;fillColor=#FCE4EC;strokeColor=#880E4F;fontColor=#880E4F;fontSize=13;rounded=1;"
+          vertex="1" parent="1">
+          <mxGeometry x="1130" y="80" width="490" height="490" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e1" value="&lt;b&gt;&#x1F4E7; Nodemailer&lt;/b&gt;&lt;br&gt;SMTP Email Service"
+          style="rounded=1;fillColor=#F48FB1;strokeColor=#880E4F;fontColor=#880E4F;fontSize=11;align=center;verticalAlign=middle;html=1;"
+          vertex="1" parent="es">
+          <mxGeometry x="30" y="40" width="220" height="55" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e2" value="&lt;b&gt;&#x1F5BC;&#xFE0F; ImgBB API&lt;/b&gt;&lt;br&gt;Image Storage and CDN"
+          style="rounded=1;fillColor=#F48FB1;strokeColor=#880E4F;fontColor=#880E4F;fontSize=11;align=center;verticalAlign=middle;html=1;"
+          vertex="1" parent="es">
+          <mxGeometry x="30" y="115" width="220" height="55" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e3" value="&lt;b&gt;&#x1F916; Google Gemini AI API&lt;/b&gt;&lt;br&gt;NLP and AI Text Analysis"
+          style="rounded=1;fillColor=#F48FB1;strokeColor=#880E4F;fontColor=#880E4F;fontSize=11;align=center;verticalAlign=middle;html=1;"
+          vertex="1" parent="es">
+          <mxGeometry x="30" y="190" width="220" height="55" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e4" value="&lt;b&gt;&#x1F5FA;&#xFE0F; Leaflet + OpenStreetMap&lt;/b&gt;&lt;br&gt;Interactive Maps and Geolocation"
+          style="rounded=1;fillColor=#F48FB1;strokeColor=#880E4F;fontColor=#880E4F;fontSize=11;align=center;verticalAlign=middle;html=1;"
+          vertex="1" parent="es">
+          <mxGeometry x="30" y="265" width="220" height="55" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e5" value="&lt;b&gt;&#x1F4C8; Recharts&lt;/b&gt;&lt;br&gt;Analytics and Data Visualization"
+          style="rounded=1;fillColor=#F48FB1;strokeColor=#880E4F;fontColor=#880E4F;fontSize=11;align=center;verticalAlign=middle;html=1;"
+          vertex="1" parent="es">
+          <mxGeometry x="30" y="340" width="220" height="55" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e6" value="&lt;b&gt;&#x1F510; JWT + Bcrypt&lt;/b&gt;&lt;br&gt;Authentication and Security"
+          style="rounded=1;fillColor=#F48FB1;strokeColor=#880E4F;fontColor=#880E4F;fontSize=11;align=center;verticalAlign=middle;html=1;"
+          vertex="1" parent="es">
+          <mxGeometry x="30" y="415" width="220" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== BACKGROUND SERVICES ==================== -->
+        <mxCell id="bs" value="BACKGROUND SERVICES"
+          style="swimlane;fontStyle=1;startSize=30;fillColor=#F5F5F5;strokeColor=#424242;fontColor=#424242;fontSize=13;rounded=1;"
+          vertex="1" parent="1">
+          <mxGeometry x="1130" y="590" width="490" height="120" as="geometry" />
+        </mxCell>
+
+        <mxCell id="b1" value="&lt;b&gt;&#x23F0; Scheduled Follow-up Jobs&lt;/b&gt;&lt;br&gt;Cron Scheduler — Auto Follow-ups and Reminders"
+          style="rounded=1;fillColor=#E0E0E0;strokeColor=#424242;fontColor=#212121;fontSize=11;align=center;verticalAlign=middle;html=1;"
+          vertex="1" parent="bs">
+          <mxGeometry x="30" y="33" width="340" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ==================== CONNECTIONS ==================== -->
+
+        <!-- User Layer → Presentation Layer -->
+        <mxCell id="c100" value=""
+          style="edgeStyle=orthogonalEdgeStyle;strokeColor=#1565C0;strokeWidth=2;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;"
+          edge="1" source="u1" target="p1" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c101" value=""
+          style="edgeStyle=orthogonalEdgeStyle;strokeColor=#1565C0;strokeWidth=2;"
+          edge="1" source="u2" target="p2" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c102" value=""
+          style="edgeStyle=orthogonalEdgeStyle;strokeColor=#1565C0;strokeWidth=2;"
+          edge="1" source="u3" target="p2" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Presentation Layer → API Layer -->
+        <mxCell id="c103" value="REST API"
+          style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6A1B9A;strokeWidth=2;fontColor=#6A1B9A;fontSize=10;fontStyle=1;html=1;"
+          edge="1" source="p1" target="a1" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c104" value=""
+          style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6A1B9A;strokeWidth=2;"
+          edge="1" source="p2" target="a5" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c105" value=""
+          style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6A1B9A;strokeWidth=2;"
+          edge="1" source="p3" target="a6" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- API Layer → Data Layer -->
+        <mxCell id="c106" value="SQL Queries"
+          style="edgeStyle=orthogonalEdgeStyle;strokeColor=#E65100;strokeWidth=3;fontColor=#E65100;fontSize=10;fontStyle=1;html=1;"
+          edge="1" source="al" target="dl" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- API Layer → External Services (dashed) -->
+        <mxCell id="c107" value="SMTP"
+          style="edgeStyle=orthogonalEdgeStyle;strokeColor=#E65100;strokeWidth=2;dashed=1;fontColor=#E65100;fontSize=9;html=1;"
+          edge="1" source="a7" target="e1" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c108" value="Image Upload"
+          style="edgeStyle=orthogonalEdgeStyle;strokeColor=#E65100;strokeWidth=2;dashed=1;fontColor=#E65100;fontSize=9;html=1;"
+          edge="1" source="a1" target="e2" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c109" value="AI API"
+          style="edgeStyle=orthogonalEdgeStyle;strokeColor=#E65100;strokeWidth=2;dashed=1;fontColor=#E65100;fontSize=9;html=1;"
+          edge="1" source="a2" target="e3" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Presentation → External Services (map and charts) -->
+        <mxCell id="c110" value="Map Tiles"
+          style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6A1B9A;strokeWidth=2;dashed=1;fontColor=#6A1B9A;fontSize=9;html=1;"
+          edge="1" source="p3" target="e4" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c111" value="Charts"
+          style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6A1B9A;strokeWidth=2;dashed=1;fontColor=#6A1B9A;fontSize=9;html=1;"
+          edge="1" source="p2" target="e5" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="c112" value="Auth Tokens"
+          style="edgeStyle=orthogonalEdgeStyle;strokeColor=#E65100;strokeWidth=2;dashed=1;fontColor=#E65100;fontSize=9;html=1;"
+          edge="1" source="a8" target="e6" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Background Services → Email Management -->
+        <mxCell id="c113" value="Triggers"
+          style="edgeStyle=orthogonalEdgeStyle;strokeColor=#424242;strokeWidth=2;dashed=1;fontColor=#424242;fontSize=9;html=1;"
+          edge="1" source="b1" target="a7" parent="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
