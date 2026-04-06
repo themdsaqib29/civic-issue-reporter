@@ -30,7 +30,7 @@ const LOCATION_KEYWORDS = [
   'chennai pammal', 'chennai pazhavanthangal', 'chennai st thomas mount', 'chennai medavakkam', 'chennai selaiyur',
   'chennai perungalathur', 'chennai mudichur', 'chennai gerugambakkam', 'chennai manapakkam', 'chennai valasaravakkam', 'chennai virugambakkam', 'chennai west mambalam', 'chennai kilpauk', 'chennai thiruvanmiyur', 'chennai mandaveli', 'chennai royapettah', 'chennai saidapet', 'chennai teynampet', 'chennai alwarpet', 'chennai gopalapuram', 'chennai nandanam',
   'chennai choolaimedu', 'chennai purasaiwalkam', 'chennai villivakkam', 'chennai perambur', 'chennai mkb nagar',
-  'chennai madhavaram', 'chennai ennore', 'chennai manali', 'chennai avadi', 'chennai poonamallee', 'chennai koyambedu',
+  'chennai madhavaram', 'chennai ennore', 'chennai manali', 't.nagar', 'chennai avadi', 'chennai poonamallee', 'chennai koyambedu',
   'chennai moggapair', 'chennai korattur', 'chennai maduravoyal', 'chennai iyyapanthangal', 'chennai ramavaram',
   'chennai thirumazhisai', 'chennai thiruneermalai', 'chennai thirusulam', 'chennai pozhal', 'chennai red hills', 'arumbakkam', 'periyar nagar', 'santoshpuram', 'lakshmipuram', 'sundaram nagar', 'ganapathypuram', 'bharathi nagar', 'kotturpuram', 'adambakkam', 'mambalam', 'kodungaiyur', 'manali new town', 'thiruvotriyur', 'sowcarpet', 'royapuram', 'fishermen colony',
   'marina beach', 'elliot beach', 'besant nagar beach', 'covelong beach', 'muttukadu backwaters',
@@ -97,23 +97,36 @@ const userSessions = new Map();
 
 /**
  * Helper: Extract info from a single message (smart but rule-based)
+ * Order matters: Check most specific categories first, generic last
  */
 function extractFromMessage(msg, originalMessage) {
   const extracted = {};
 
-  // CATEGORY
-  if (/road|pothole|crack|tar|highway|pavement|asphalt|damage|damaged/.test(msg))
-    extracted.category = 'Road Maintenance';
+  // CATEGORY - Check most specific first, generic last!
+  
+  // 1. HEALTH (most specific - catches disease, mosquito, infection)
+  if (/health|mosquito|disease|sanitation|infection|infections|diseases|hygiene|medical/.test(msg))
+    extracted.category = 'Public Health';
+  
+  // 2. WATER ISSUES (specific - catches stagnated, water, leak)
+  else if (/water|stagnated|stagnat|pipe|leak|supply|tap|burst|waterlogging|water.*logging/.test(msg))
+    extracted.category = 'Water Supply';
+  
+  // 3. DRAINAGE (specific - catches overflow, block, sewage, flood)
+  else if (/drain|sewage|block|overflow|clog|flood|waterlogging|drainage/.test(msg))
+    extracted.category = 'Drainage';
+  
+  // 4. GARBAGE (specific - catches waste, trash, litter)
   else if (/garbage|waste|trash|dustbin|cleaning|litter|dump/.test(msg))
     extracted.category = 'Garbage Collection';
+  
+  // 5. STREETLIGHT (specific - catches light, bulb, electric)
   else if (/light|lamp|dark|pole|bulb|street.*light|electric|wire|transformer|short circuit|shock|power/.test(msg))
     extracted.category = 'Streetlight';
-  else if (/water|stagnat|pipe|leak|supply|tap|burst/.test(msg))
-    extracted.category = 'Water Supply';
-  else if (/drain|sewage|block|overflow|clog|flood/.test(msg))
-    extracted.category = 'Drainage';
-  else if (/health|mosquito|disease|sanitation/.test(msg))
-    extracted.category = 'Public Health';
+  
+  // 6. ROAD MAINTENANCE (most generic - checked last to avoid false matches!)
+  else if (/pothole|crack|tar|highway|pavement|asphalt|damage|damaged/.test(msg))
+    extracted.category = 'Road Maintenance';
 
   // SEVERITY
   if (/(low|medium|high)/.test(msg)) {

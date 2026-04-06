@@ -95,10 +95,10 @@ async function getUnresolvedCount(category, location_address) {
 }
 
 // Helper function to recalculate priority score and label based on current votes and conditions
-async function recalculatePriorityScore(issueId, severity = 'Normal') {
+async function recalculatePriorityScore(issueId) {
   try {
     // Fetch current issue data
-    const issueQuery = 'SELECT vote_count, category, description, location_address FROM issues WHERE id = $1';
+    const issueQuery = 'SELECT vote_count, category, description, location_address, severity FROM issues WHERE id = $1';
     const issueResult = await pool.query(issueQuery, [issueId]);
     
     if (issueResult.rows.length === 0) {
@@ -108,6 +108,7 @@ async function recalculatePriorityScore(issueId, severity = 'Normal') {
 
     const issue = issueResult.rows[0];
     const voteCount = issue.vote_count || 0;
+    const severity = issue.severity || 'Normal';  // ← ADD THIS LINE
 
     // Recalculate priority score considering votes
     let sentimentScore = 0.5;
