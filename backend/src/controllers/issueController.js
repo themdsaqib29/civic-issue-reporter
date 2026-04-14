@@ -322,34 +322,8 @@ exports.createIssue = async (req, res) => {
     const issue = await Issue.create(issueData);
     console.log('Issue created successfully:', issue.id);
 
-    // === 7. SEND EMAIL AUTOMATICALLY ===
-    // === 7. SEND EMAIL AUTOMATICALLY ===
-let emailResult = null;
-
-try {
-  // 🔥 Fetch citizen email for CC
-  const userResult = await pool.query(
-    'SELECT email FROM users WHERE id = $1',
-    [issue.user_id || issue.userId]
-  );
-
-  if (userResult.rows.length > 0) {
-    issue.citizen_email = userResult.rows[0].email;
-  }
-
-  emailResult = await emailService.sendIssueEmail(issue, department);
-
-  await pool.query(
-    'UPDATE issues SET email_sent = true WHERE id = $1',
-    [issue.id]
-  );
-
-  console.log('✅ Email sent for issue:', issue.id);
-
-} catch (emailError) {
-  console.error('⚠️ Email failed (issue still saved):', emailError.message);
-}
-
+    // === 7. SEND EMAIL IN BACKGROUND (NON-BLOCKING) ===
+    // Respond to user immediately without waiting for email
     console.log('=== CREATE ISSUE END ===');
 
     res.status(201).json({
@@ -359,7 +333,7 @@ try {
         ...issue,
         departmentName: department ? department.name : 'Pending Assignment'
       },
-      emailSent: !!emailResult,
+      emailSent: false, // Will be sent in background
       emailTo: department?.email || 'N/A',
       priorityLevel: priorityLabel,
       duplicateDetection: {
@@ -369,6 +343,32 @@ try {
           ? `⚠️ Possible duplicate found (${duplicateDetection.confidence}% confidence). Please review before proceeding.`
           : 'No duplicates detected',
         candidates: duplicateDetection.candidates.slice(0, 3) // Top 3 candidates
+      }
+    });
+
+    // Send email in background (don't wait for it)
+    setImmediate(async () => {
+      try {
+        const userResult = await pool.query(
+          'SELECT email FROM users WHERE id = $1',
+          [issue.user_id || issue.userId]
+        );
+
+        if (userResult.rows.length > 0) {
+          issue.citizen_email = userResult.rows[0].email;
+        }
+
+        await emailService.sendIssueEmail(issue, department);
+
+        await pool.query(
+          'UPDATE issues SET email_sent = true WHERE id = $1',
+          [issue.id]
+        );
+
+        console.log('✅ Email sent in background for issue:', issue.id);
+      } catch (emailError) {
+        console.error('⚠️ Email failed (issue still saved):', emailError.message);
+        // Issue already saved to database, just log error
       }
     });
 
